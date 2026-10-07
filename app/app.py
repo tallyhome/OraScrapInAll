@@ -17,12 +17,12 @@ import threading
 import json
 from datetime import datetime
 from io import BytesIO
-from scrapers.sources import SOURCES, SOURCE_GROUPS
-from scrapers.engine import scrape_generic_group, scroll_to_bottom
-from scrapers.universal_scraper import scrape_universal
-from scrapers.smart_search import scrape_smart_search
-from scrapers.mairies import collect_mairies, load_geo
-from scrapers.workspace import (
+from scrapers.campings.sources import SOURCES, SOURCE_GROUPS
+from scrapers.campings.engine import scrape_generic_group, scroll_to_bottom
+from scrapers.recherche.universal_scraper import scrape_universal
+from scrapers.recherche.smart_search import scrape_smart_search
+from scrapers.annuaire.mairies import collect_mairies, load_geo
+from scrapers.systeme.workspace import (
     add_project, add_proxy, add_schedule, choose_proxy, chrome_proxy,
     delete_project, delete_proxy, delete_schedule, due_schedule,
     load_activity, load_exports, load_projects, load_schedules, load_settings,
@@ -1299,19 +1299,19 @@ def start_scheduler():
 
 @app.route('/api/update/status')
 def api_update_status():
-    from scrapers.updater import get_state
+    from scrapers.systeme.updater import get_state
     return jsonify(get_state())
 
 
 @app.route('/api/update/check', methods=['POST'])
 def api_update_check():
-    from scrapers.updater import check_for_update
+    from scrapers.systeme.updater import check_for_update
     return jsonify(check_for_update())
 
 
 @app.route('/api/update', methods=['POST'])
 def api_update_apply():
-    from scrapers.updater import apply_update
+    from scrapers.systeme.updater import apply_update
     if search_in_progress:
         return jsonify({"error": "Une recherche est en cours. Arrêtez-la avant la mise à jour."}), 409
     return jsonify(apply_update())
@@ -1320,7 +1320,7 @@ def api_update_apply():
 if __name__ == '__main__':
     start_scheduler()
     try:
-        from scrapers.updater import startup_autoupdate
+        from scrapers.systeme.updater import startup_autoupdate
         startup_autoupdate(enabled=bool(load_settings().get("auto_update", True)))
     except Exception as exc:
         print(f"Mise à jour automatique : {exc}")

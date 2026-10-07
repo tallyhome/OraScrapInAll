@@ -37,11 +37,14 @@ _CREATE_NO_WINDOW = 0x08000000
 
 
 def project_root() -> Path:
-    scrapers = Path(__file__).resolve().parent
-    parent = scrapers.parent
-    if parent.name == "app":
-        return parent.parent
-    return parent
+    folder = Path(__file__).resolve().parent
+    for _ in range(6):
+        if (folder / "VERSION").is_file() and (folder / "runtime").is_dir():
+            return folder
+        if folder.parent == folder:
+            break
+        folder = folder.parent
+    return Path(__file__).resolve().parents[2]
 
 
 ROOT = project_root()
@@ -338,7 +341,7 @@ def _run_apply() -> None:
             message=f"Installation de {version}. L'application redémarre.",
         )
         try:
-            from scrapers.workspace import log_activity
+            from scrapers.systeme.workspace import log_activity
             log_activity("INFO", f"Mise à jour {version} : redémarrage")
         except Exception:
             pass

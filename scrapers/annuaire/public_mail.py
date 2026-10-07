@@ -11,7 +11,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urljoin, urlparse
 
-from scrapers.mairies import (
+from scrapers.annuaire.mairies import (
     EMAIL_RE,
     USER_AGENT,
     _emails_from_html,

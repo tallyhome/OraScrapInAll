@@ -6,7 +6,7 @@ import time
 import re
 from selenium.webdriver.common.by import By
 from urllib.parse import urlparse
-from scrapers.google_strategy import scrape_group_via_google
+from scrapers.campings.google_strategy import scrape_group_via_google
 
 
 def scroll_to_bottom(driver, max_scrolls=8, pause=0.4):

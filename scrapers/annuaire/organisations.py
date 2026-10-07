@@ -9,7 +9,7 @@ une piste de recherche Google déjà formulée.
 import time
 import urllib.parse
 
-from scrapers.mairies import _get_json, _norm
+from scrapers.annuaire.mairies import _get_json, _norm
 
 SEARCH_API = "https://recherche-entreprises.api.gouv.fr/search"
 

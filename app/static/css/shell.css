@@ -400,6 +400,12 @@ html[data-theme="basic"] .classic-head {
     gap: 14px;
     padding: 28px 24px 8px;
 }
+html[data-theme="basic"] .classic-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
 html[data-theme="basic"] .classic-brand {
     display: flex;
     align-items: center;

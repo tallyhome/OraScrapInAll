@@ -7,10 +7,15 @@ from datetime import datetime, timedelta
 from urllib.parse import quote
 
 def _project_root():
-    parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if os.path.basename(parent) == "app":
-        return os.path.dirname(parent)
-    return parent
+    folder = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(folder, "VERSION")) and os.path.isdir(os.path.join(folder, "runtime")):
+            return folder
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            break
+        folder = parent
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 ROOT = _project_root()

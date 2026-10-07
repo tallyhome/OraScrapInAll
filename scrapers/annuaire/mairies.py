@@ -658,7 +658,7 @@ def collect_mairies(region_code, departement_code, results_cache, stop_flag, sca
     Remplit results_cache avec une ligne par commune.
     max_results <= 0 : pas de plafond.
     """
-    from scrapers.organisations import fetch_organisations, piste_url
+    from scrapers.annuaire.organisations import fetch_organisations, piste_url
 
     selected = set(kinds or ["mairie", "epci"])
     regional_records = []
@@ -713,7 +713,7 @@ def collect_mairies(region_code, departement_code, results_cache, stop_flag, sca
             detail(f"{departement['nom']} : offices, comités, scènes…")
             rows.extend(fetch_organisations(code, departement, communes, selected, stop_flag))
         rows = [row for row in rows if _passes_population(row, min_population)]
-        from scrapers.public_mail import enrich_public_contacts
+        from scrapers.annuaire.public_mail import enrich_public_contacts
         enrich_public_contacts(rows, code, stop_flag, detail)
         rows.sort(key=lambda row: (
             0 if row.get("groupe") == "Mairie" else 1,

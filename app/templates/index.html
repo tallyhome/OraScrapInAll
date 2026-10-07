@@ -38,12 +38,26 @@
     </aside>
     <div class="workspace">
         <header class="classic-head">
-            <div class="classic-brand">
-                <span class="brand-mark">O</span>
-                <div>
-                    <h1>OraScrapInAll</h1>
-                    <p>Recherchez et exportez avec Email, Téléphone, pour vos campagnes marketing</p>
+            <div class="classic-top">
+                <div class="classic-brand">
+                    <span class="brand-mark">O</span>
+                    <div>
+                        <h1>OraScrapInAll</h1>
+                        <p>Recherchez et exportez avec Email, Téléphone, pour vos campagnes marketing</p>
+                    </div>
                 </div>
+                <label class="theme-picker">Thème
+                    <select id="themeSelectBasic" onchange="setTheme(this.value)">
+                        <option value="basic">Basic</option>
+                        <option value="harvest">Harvest</option>
+                        <option value="grid">GridScrape</option>
+                        <option value="nest">Nest</option>
+                        <option value="pulse">DataPulse</option>
+                        <option value="master">ScrapeMaster</option>
+                        <option value="flow">ScrapeFlow</option>
+                        <option value="scrapeo">Scrapeo</option>
+                    </select>
+                </label>
             </div>
             <nav class="classic-nav">
                 <button type="button" class="classic-link" data-page="dashboard" onclick="showPage('dashboard')">Tableau de bord</button>
@@ -480,8 +494,9 @@
         function setTheme(name) {
             document.documentElement.setAttribute('data-theme', name);
             localStorage.setItem('orascrap-theme', name);
-            const select = document.getElementById('themeSelect');
-            if (select) select.value = name;
+            document.querySelectorAll('#themeSelect, #themeSelectBasic').forEach(select => {
+                select.value = name;
+            });
             if (availableSources && Object.keys(availableSources).length) renderSources();
         }
 
