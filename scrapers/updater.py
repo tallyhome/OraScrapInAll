@@ -123,26 +123,49 @@ def _get_json(url: str):
 
 def fetch_github_release():
     payload = _get_json(API)
+    if payload:
+        tag = str(payload.get("tag_name") or "").strip().lstrip("vV")
+        if tag:
+            zip_url = ""
+            for asset in payload.get("assets") or []:
+                name = str(asset.get("name") or "").lower()
+                if name.endswith(".zip"):
+                    zip_url = str(asset.get("browser_download_url") or "")
+                    break
+            if not zip_url:
+                zip_url = f"https://github.com/{REPO}/archive/refs/tags/v{tag}.zip"
+            if not _allowed(zip_url):
+                raise RuntimeError("Adresse de téléchargement refusée.")
+            return {
+                "version": tag,
+                "url": zip_url,
+                "notes": str(payload.get("body") or "")[:1500],
+                "release_url": str(payload.get("html_url") or ""),
+            }
+    return _fetch_branch_version()
+
+
+def _fetch_branch_version():
+    import base64
+    url = f"https://api.github.com/repos/{REPO}/contents/VERSION?ref=master"
+    payload = _get_json(url)
     if not payload:
         return None
-    tag = str(payload.get("tag_name") or "").strip().lstrip("vV")
-    if not tag:
+    encoded = str(payload.get("content") or "").replace("\n", "")
+    try:
+        version = base64.b64decode(encoded).decode("utf-8").strip().lstrip("vV")
+    except Exception:
         return None
-    zip_url = ""
-    for asset in payload.get("assets") or []:
-        name = str(asset.get("name") or "").lower()
-        if name.endswith(".zip"):
-            zip_url = str(asset.get("browser_download_url") or "")
-            break
-    if not zip_url:
-        zip_url = f"https://github.com/{REPO}/archive/refs/tags/v{tag}.zip"
+    if not version:
+        return None
+    zip_url = f"https://github.com/{REPO}/archive/refs/heads/master.zip"
     if not _allowed(zip_url):
         raise RuntimeError("Adresse de téléchargement refusée.")
     return {
-        "version": tag,
+        "version": version,
         "url": zip_url,
-        "notes": str(payload.get("body") or "")[:1500],
-        "release_url": str(payload.get("html_url") or ""),
+        "notes": "",
+        "release_url": f"https://github.com/{REPO}",
     }
 
 
