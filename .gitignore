@@ -1,0 +1,9 @@
+runtime/
+data/
+archives/
+.venv/
+__pycache__/
+*.pyc
+*.xlsx
+search_history.json
+~$*

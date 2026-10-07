@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OraScrapInAll</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}">
+    <script>
+        (function () {
+            var theme = localStorage.getItem('orascrap-theme') || 'basic';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">O</span><span>OraScrapInAll</span></div>
+        <nav class="nav-list">
+            <button class="nav-btn" data-page="dashboard" onclick="showPage('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg><span>Tableau de bord</span></button>
+            <button class="nav-btn" data-page="projects" onclick="showPage('projects')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h6l2 2h10v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg><span>Projets</span></button>
+            <button class="nav-btn" data-page="scraper" onclick="showPage('scraper')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>Scrapers</span></button>
+            <button class="nav-btn" data-page="schedule" onclick="showPage('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg><span>Planification</span></button>
+            <button class="nav-btn" data-page="data" onclick="showPage('data')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg><span>Données</span></button>
+            <button class="nav-btn" data-page="exports" onclick="showPage('exports')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg><span>Exports</span></button>
+            <button class="nav-btn" data-page="proxies" onclick="showPage('proxies')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>Proxies</span></button>
+            <button class="nav-btn" data-page="settings" onclick="showPage('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg><span>Paramètres</span></button>
+        </nav>
+        <div class="sidebar-foot">
+            <strong>Système</strong>
+            <span><i class="dot"></i><em id="systemState">Prêt</em></span>
+        </div>
+    </aside>
+    <div class="workspace">
+        <header class="classic-head">
+            <div class="classic-brand">
+                <span class="brand-mark">O</span>
+                <div>
+                    <h1>OraScrapInAll</h1>
+                    <p>Recherchez et exportez avec Email, Téléphone, pour vos campagnes marketing</p>
+                </div>
+            </div>
+            <nav class="classic-nav">
+                <button type="button" class="classic-link" data-page="dashboard" onclick="showPage('dashboard')">Tableau de bord</button>
+                <button type="button" class="classic-link" data-page="projects" onclick="showPage('projects')">Projets</button>
+                <button type="button" class="classic-link" data-page="scraper" onclick="showPage('scraper')">Scrapers</button>
+                <button type="button" class="classic-link" data-page="schedule" onclick="showPage('schedule')">Planification</button>
+                <button type="button" class="classic-link" data-page="data" onclick="showPage('data')">Données</button>
+                <button type="button" class="classic-link" data-page="exports" onclick="showPage('exports')">Exports</button>
+                <button type="button" class="classic-link" data-page="proxies" onclick="showPage('proxies')">Proxies</button>
+                <button type="button" class="classic-link" data-page="settings" onclick="showPage('settings')">Paramètres</button>
+            </nav>
+        </header>
+        <div id="updateBanner" class="update-banner" hidden></div>
+        <header class="topbar">
+            <div>
+                <h1 id="pageTitle">Tableau de bord</h1>
+                <p id="pageSubtitle">Les chiffres viennent de vos recherches enregistrées</p>
+            </div>
+            <label class="topbar-search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="globalSearch" type="text" placeholder="Filtrer sources ou données">
+            </label>
+            <label class="theme-picker">Thème
+                <select id="themeSelect" onchange="setTheme(this.value)">
+                    <option value="basic">Basic</option>
+                    <option value="harvest">Harvest</option>
+                    <option value="grid">GridScrape</option>
+                    <option value="nest">Nest</option>
+                    <option value="pulse">DataPulse</option>
+                    <option value="master">ScrapeMaster</option>
+                    <option value="flow">ScrapeFlow</option>
+                    <option value="scrapeo">Scrapeo</option>
+                </select>
+            </label>
+            <div class="user-chip"><span class="avatar" id="userAvatar">O</span><span id="userName">Ora</span></div>
+        </header>
+
+        <section id="page-dashboard" class="page">
+            <div class="stat-grid" id="statGrid"></div>
+            <div class="dash-grid">
+                <div class="card" id="chartCard"></div>
+                <div class="card" id="recentCard"></div>
+            </div>
+            <div class="card" id="logCard" style="margin-top:14px"></div>
+        </section>
+
+        <section id="page-projects" class="page" hidden>
+            <form id="projectForm" class="card form-card" onsubmit="createProject(event)">
+                <div class="wide"><label>Nom du projet</label><input id="projectName" required placeholder="Plaquette Côte-d'Or"></div>
+                <div class="wide"><label>Note</label><input id="projectNote" placeholder="Envoi de mai"></div>
+                <div class="full"><button class="btn-primary" type="submit">Créer le projet</button></div>
+            </form>
+            <div class="card" id="projectList" style="margin-top:14px"></div>
+        </section>
+
+        <section id="page-schedule" class="page" hidden>
+            <form id="scheduleForm" class="card form-card" onsubmit="createSchedule(event)">
+                <div><label>Nom</label><input id="schedName" required placeholder="Mairies chaque lundi"></div>
+                <div><label>Type</label>
+                    <select id="schedMode">
+                        <option value="mairie">Mairies et structures</option>
+                        <option value="camping">Campings</option>
+                        <option value="universal">Universel</option>
+                        <option value="smart">Smart Search</option>
+                    </select>
+                </div>
+                <div><label>Projet</label><select id="schedProject"></select></div>
+                <div><label>Rythme</label>
+                    <select id="schedFrequency">
+                        <option value="daily">Chaque jour</option>
+                        <option value="weekly">Chaque semaine</option>
+                        <option value="once">Une seule fois</option>
+                    </select>
+                </div>
+                <div><label>Heure</label><input id="schedTime" type="time" value="08:00" required></div>
+                <div><label>Jour (semaine)</label>
+                    <select id="schedWeekday">
+                        <option value="0">Lundi</option><option value="1">Mardi</option><option value="2">Mercredi</option>
+                        <option value="3">Jeudi</option><option value="4">Vendredi</option><option value="5">Samedi</option><option value="6">Dimanche</option>
+                    </select>
+                </div>
+                <div class="wide"><label>Date unique</label><input id="schedOnce" type="datetime-local"></div>
+                <input id="schedPayload" type="hidden" value="{}">
+                <div class="full">
+                    <button class="btn-primary" type="submit">Enregistrer</button>
+                    <p id="schedHint" class="empty-note">Réglez d'abord la recherche dans Scrapers, puis cliquez Planifier pour copier ces réglages.</p>
+                </div>
+            </form>
+            <div class="card" id="scheduleList" style="margin-top:14px"></div>
+        </section>
+
+        <section id="page-data" class="page" hidden>
+            <div class="toolbar">
+                <input id="dataSearch" placeholder="Nom, e-mail, ville…" oninput="contactOffset=0; refreshContacts()">
+                <label class="checkbox-group"><input id="dataEmailOnly" type="checkbox" onchange="contactOffset=0; refreshContacts()"><span>Avec e-mail seulement</span></label>
+                <span id="dataTotal"></span>
+            </div>
+            <div class="card" id="dataTable"></div>
+        </section>
+
+        <section id="page-exports" class="page" hidden>
+            <div class="card" id="exportList"></div>
+        </section>
+
+        <section id="page-proxies" class="page" hidden>
+            <form id="proxyForm" class="card form-card" onsubmit="createProxy(event)">
+                <div><label>Nom</label><input id="proxyLabel" placeholder="Bureau"></div>
+                <div><label>Type</label><select id="proxyScheme"><option value="http">HTTP</option><option value="https">HTTPS</option><option value="socks5">SOCKS5</option></select></div>
+                <div><label>Hôte</label><input id="proxyHost" required placeholder="127.0.0.1"></div>
+                <div><label>Port</label><input id="proxyPort" required type="number" min="1" max="65535" placeholder="8080"></div>
+                <div><label>Identifiant</label><input id="proxyUser" autocomplete="off"></div>
+                <div><label>Mot de passe</label><input id="proxyPass" type="password" autocomplete="new-password"></div>
+                <div class="full"><button class="btn-primary" type="submit">Ajouter</button></div>
+            </form>
+            <div class="card" style="margin-top:14px">
+                <div class="toolbar">
+                    <label>Utilisation
+                        <select id="proxyMode" onchange="saveProxyMode()">
+                            <option value="off">Direct, sans proxy</option>
+                            <option value="selected">Le proxy choisi</option>
+                            <option value="rotate">Tourner à chaque recherche</option>
+                        </select>
+                    </label>
+                    <span id="proxyActive"></span>
+                </div>
+                <div id="proxyList"></div>
+            </div>
+        </section>
+
+        <section id="page-settings" class="page" hidden>
+            <form class="card form-card" onsubmit="saveSettings(event)">
+                <div class="wide"><label>Nom affiché</label><input id="settingName" placeholder="Julien"></div>
+                <div class="wide"><label class="checkbox-group"><input id="settingChrome" type="checkbox"><span>Voir Chrome par défaut</span></label></div>
+                <div class="full"><label class="checkbox-group"><input id="autoUpdate" type="checkbox" checked><span>Mise à jour automatique au lancement</span></label></div>
+                <div class="full"><button class="btn-primary" type="submit">Enregistrer</button></div>
+            </form>
+            <div class="card" id="updateCard" style="margin-top:14px">
+                <h2>Mise à jour</h2>
+                <p id="updateMessage" class="empty-note">Vérification sur GitHub…</p>
+                <p id="updateNotes" class="empty-note"></p>
+                <div class="row-actions">
+                    <button type="button" class="btn-quiet" onclick="checkUpdate()">Vérifier</button>
+                    <button type="button" class="btn-primary" onclick="runUpdate()">Mettre à jour</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-scraper" class="page" hidden>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Scrapers</h1>
+                <p>Recherchez et exportez les e-mails et téléphones pour vos envois</p>
+            </div>
+            <div class="scraper-tools">
+                <label class="theme-picker">Projet
+                    <select id="projectSelect"></select>
+                </label>
+                <button class="btn-primary" type="button" onclick="planCurrentSearch()">Planifier</button>
+            </div>
+        </div>
+        
+        <div class="sources-section">
+            <h3>Sources à scraper</h3>
+            <div class="sources-toolbar">
+                <input type="text" id="sourceSearch" placeholder="Filtrer un groupe…" oninput="renderSources()">
+                <span id="sourceCount" class="source-count"></span>
+            </div>
+            <div id="sourcesContainer">Chargement des sources...</div>
+            <div class="sources-actions">
+                <button class="btn-sources-toggle" onclick="toggleAllSources(true)">Tout sélectionner</button>
+                <button class="btn-sources-toggle" onclick="toggleAllSources(false)">Tout désélectionner</button>
+                <button class="btn-sources-toggle" onclick="selectOnlyCapfun()">Capfun seulement</button>
+            </div>
+        </div>
+
+        <!-- Mode de recherche -->
+        <div class="search-section">
+            <div class="mode-tabs">
+                <button class="mode-tab active" onclick="switchMode('camping')">🏕️ Campings</button>
+                <button class="mode-tab" onclick="switchMode('universal')">🌐 Universel</button>
+                <button class="mode-tab" onclick="switchMode('smart')">🎯 Smart Search</button>
+                <button class="mode-tab" onclick="switchMode('mairie')">🏛️ Mairies</button>
+            </div>
+
+            <!-- Formulaire Camping -->
+            <div id="campingForm" class="mode-form">
+                <div class="form-group">
+                    <div class="input-group">
+                        <label for="keyword">Mot-clé de recherche</label>
+                        <input type="text" id="keyword" placeholder="naturiste, bord de mer, bretagne...">
+                    </div>
+                    <div class="input-group">
+                        <label for="maxResults">Nombre max</label>
+                        <input type="number" id="maxResults" value="50" min="1" max="500">
+                    </div>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="debugMode">
+                        <span>Voir Chrome</span>
+                    </label>
+                    <button id="searchBtn" onclick="startSearch()">
+                        🚀 Lancer la recherche
+                    </button>
+                    <button id="stopBtn" class="btn-stop" onclick="stopSearch()" style="display: none;">
+                        ⏹ Arrêter
+                    </button>
+                </div>
+            </div>
+
+            <!-- Formulaire Universel -->
+            <div id="universalForm" class="mode-form" style="display: none;">
+                <div class="form-group">
+                    <div class="input-group">
+                        <label for="universalQuery">Recherche universelle</label>
+                        <input type="text" id="universalQuery" placeholder="comité d'entreprise, restaurant, garage...">
+                    </div>
+                    <div class="input-group">
+                        <label for="universalPays">Pays</label>
+                        <select id="universalPays">
+                            <option value="">Tous les pays</option>
+                            <option value="France">France</option>
+                            <option value="Belgique">Belgique</option>
+                            <option value="Suisse">Suisse</option>
+                            <option value="Canada">Canada</option>
+                            <option value="Luxembourg">Luxembourg</option>
+                            <option value="Monaco">Monaco</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="universalRegion">Région</label>
+                        <input type="text" id="universalRegion" placeholder="Île-de-France, Auvergne-Rhône-Alpes...">
+                    </div>
+                    <div class="input-group">
+                        <label for="universalVille">Ville</label>
+                        <input type="text" id="universalVille" placeholder="Paris, Lyon, Marseille...">
+                    </div>
+                    <div class="input-group">
+                        <label for="universalMaxResults">Nombre max</label>
+                        <input type="number" id="universalMaxResults" value="20" min="1" max="100">
+                    </div>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="universalDebugMode">
+                        <span>Voir Chrome</span>
+                    </label>
+                    <button id="universalSearchBtn" onclick="startUniversalSearch()">
+                        🔍 Rechercher
+                    </button>
+                    <button id="universalStopBtn" class="btn-stop" onclick="stopSearch()" style="display: none;">
+                        ⏹ Arrêter
+                    </button>
+                </div>
+            </div>
+
+            <!-- Formulaire Smart Search -->
+            <div id="smartForm" class="mode-form" style="display: none;">
+                <div class="form-group">
+                    <div class="input-group">
+                        <label for="smartQuery">Recherche intelligente</label>
+                        <input type="text" id="smartQuery" placeholder="fabien de forest, nom d'entreprise, personne...">
+                    </div>
+                    <div class="input-group">
+                        <label for="smartPays">Pays</label>
+                        <select id="smartPays">
+                            <option value="">Tous les pays</option>
+                            <option value="France">France</option>
+                            <option value="Belgique">Belgique</option>
+                            <option value="Suisse">Suisse</option>
+                            <option value="Canada">Canada</option>
+                            <option value="Luxembourg">Luxembourg</option>
+                            <option value="Monaco">Monaco</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="smartRegion">Région</label>
+                        <input type="text" id="smartRegion" placeholder="Bourgogne, Île-de-France...">
+                    </div>
+                    <div class="input-group">
+                        <label for="smartVille">Ville</label>
+                        <input type="text" id="smartVille" placeholder="Dijon, Paris, Lyon...">
+                    </div>
+                    <div class="input-group">
+                        <label for="smartMaxResults">Nombre max</label>
+                        <input type="number" id="smartMaxResults" value="15" min="1" max="50">
+                    </div>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="smartDebugMode">
+                        <span>Voir Chrome</span>
+                    </label>
+                    <button id="smartSearchBtn" onclick="startSmartSearch()">
+                        🎯 Rechercher
+                    </button>
+                    <button id="smartStopBtn" class="btn-stop" onclick="stopSearch()" style="display: none;">
+                        ⏹ Arrêter
+                    </button>
+                </div>
+            </div>
+
+            <!-- Formulaire Mairies -->
+            <div id="mairieForm" class="mode-form" style="display: none;">
+                <div class="form-group">
+                    <div class="input-group">
+                        <label for="mairieRegion">Région</label>
+                        <select id="mairieRegion" onchange="fillMairieDepartements()">
+                            <option value="">Chargement…</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="mairieDepartement">Département</label>
+                        <select id="mairieDepartement">
+                            <option value="">Tous les départements</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="mairieMinPopulation">Habitants minimum</label>
+                        <input type="number" id="mairieMinPopulation" placeholder="ex. 2000" min="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="mairieMaxResults">Nombre max</label>
+                        <input type="number" id="mairieMaxResults" placeholder="toutes" min="1">
+                    </div>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="mairieScanSites" checked>
+                        <span>E-mail socioculturel sur le site</span>
+                    </label>
+                    <div class="kind-row">
+                        <label class="checkbox-group"><input type="checkbox" id="kindMairie" checked><span>Mairies</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindEpci" checked><span>Communautés de communes</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindCd" checked><span>Conseil départemental</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindCr" checked><span>Conseil régional</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindOt" checked><span>Offices de tourisme</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindScene" checked><span>Scènes et agences culturelles</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindFete" checked><span>Comités des fêtes</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindAsso" checked><span>Associations, MJC, centres sociaux</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindCe"><span>CE / CSE</span></label>
+                        <label class="checkbox-group"><input type="checkbox" id="kindProd"><span>Producteurs</span></label>
+                    </div>
+                    <button id="mairieSearchBtn" onclick="startMairieSearch()">
+                        🏛️ Lancer
+                    </button>
+                    <button id="mairieStopBtn" class="btn-stop" onclick="stopSearch()" style="display: none;">
+                        ⏹ Arrêter
+                    </button>
+                </div>
+                <p style="margin-top: 12px; color: var(--gray-500); font-size: 0.85rem; max-width: 820px;">
+                    Le compteur « mairies » compte les mairies. Pour les conseils, offices, scènes, comités, MJC et centres sociaux, l'annuaire national ne publie pas d'e-mail : la recherche lit ceux qui sont écrits sur leur site (y compris les adresses masquées) et, quand il répond, OpenStreetMap. S'il n'y a toujours pas d'adresse, l'organisme ne l'a pas publiée : le lien Chercher reste là. Quand le site ou une fiche publique indique une page Facebook, Instagram ou LinkedIn, cette page est lue telle quelle. Si le réseau demande une connexion, l'e-mail reste inaccessible. Arts et Scènes Côte-d'Or est le service du conseil départemental, pas une structure à part.
+                </p>
+            </div>
+        </div>
+        
+        <div id="status" class="status">
+            <span id="statusText">Prêt à rechercher...</span>
+        </div>
+        
+        <div class="results-section">
+            <div class="results-header">
+                <h2>📋 Résultats</h2>
+                <span id="resultsCount" class="results-count" style="display: none;">0 campings</span>
+            </div>
+            
+            <div id="emptyState" class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <h3>Aucun résultat</h3>
+                <p>Lancez une recherche pour voir les campings</p>
+            </div>
+            
+            <div id="resultsContainer" style="display: none;">
+                <div id="regionsContainer"></div>
+                
+                <div class="actions export-actions">
+                    <div class="export-group">
+                        <div class="input-group">
+                            <label>Format</label>
+                            <select id="exportFormat">
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Contenu</label>
+                            <select id="exportMode">
+                                <option value="all">Toutes les colonnes</option>
+                                <option value="emails">Uniquement les lignes avec e-mail</option>
+                                <option value="emails_only">E-mails seulement</option>
+                            </select>
+                        </div>
+                        <button class="btn-export" onclick="exportResults()">
+                            📥 Télécharger
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Historique -->
+        <div class="results-section" style="margin-top: 30px;">
+            <div class="results-header">
+                <h2>🕘 Historique des recherches</h2>
+                <button class="btn-clear-history" onclick="clearHistory()">🗑️ Vider</button>
+            </div>
+            <div id="historyContainer">
+                <p style="color: #adb5bd; text-align: center; padding: 20px;">Aucune recherche dans l'historique</p>
+            </div>
+        </div>
+    </div>
+    </section>
+
+    <script>
+        let statusInterval;
+        let lastKnownCount = -1;
+        let lastRevision = -1;
+        let activeMode = 'camping';
+        let geoDepartements = [];
+        
+        // ===== SOURCES =====
+        let availableSources = {};
+        let selectedSources = new Set(['capfun']);
+
+        function loadSources() {
+            fetch('/sources')
+            .then(r => r.json())
+            .then(data => {
+                availableSources = data;
+                renderSources();
+            })
+            .catch(() => {
+                document.getElementById('sourcesContainer').innerHTML =
+                    '<span style="color:#ef4444">Erreur chargement sources</span>';
+            });
+        }
+
+        function setTheme(name) {
+            document.documentElement.setAttribute('data-theme', name);
+            localStorage.setItem('orascrap-theme', name);
+            const select = document.getElementById('themeSelect');
+            if (select) select.value = name;
+            if (availableSources && Object.keys(availableSources).length) renderSources();
+        }
+
+        function renderSources() {
+            const container = document.getElementById('sourcesContainer');
+            if (document.documentElement.getAttribute('data-theme') === 'basic') {
+                renderSourceChips();
+                return;
+            }
+            const query = (document.getElementById('sourceSearch')?.value || '').trim().toLowerCase();
+            let html = '';
+            for (const [groupName, sources] of Object.entries(availableSources)) {
+                const visible = sources.filter(s => {
+                    const blob = `${s.label || ''} ${s.id || ''}`.toLowerCase();
+                    return !query || blob.includes(query);
+                });
+                if (!visible.length) continue;
+                const chosen = sources.filter(s => selectedSources.has(s.id)).length;
+                html += `<details class="sources-group" open>`;
+                html += `<summary><span>${escapeHtml(groupName)}</span><span class="source-count">${chosen} / ${sources.length}</span></summary>`;
+                html += `<div class="sources-list">`;
+                visible.forEach(s => {
+                    const checked = selectedSources.has(s.id) ? 'checked' : '';
+                    html += `<label class="source-row"><input type="checkbox" ${checked} onchange="toggleSource('${s.id}', this)"><span>${escapeHtml(s.label)}</span></label>`;
+                });
+                html += `</div></details>`;
+            }
+            container.innerHTML = html || '<p class="source-count">Aucun groupe ne correspond.</p>';
+            refreshSourceCounts();
+        }
+
+        function renderSourceChips() {
+            const container = document.getElementById('sourcesContainer');
+            const query = (document.getElementById('sourceSearch')?.value || '').trim().toLowerCase();
+            let html = '';
+            for (const [groupName, sources] of Object.entries(availableSources)) {
+                const visible = sources.filter(s => {
+                    const blob = `${s.label || ''} ${s.id || ''}`.toLowerCase();
+                    return !query || blob.includes(query);
+                });
+                if (!visible.length) continue;
+                html += `<div class="chip-group"><div class="chip-label">${escapeHtml(groupName)}</div><div class="chip-row">`;
+                visible.forEach(s => {
+                    const on = selectedSources.has(s.id) ? ' on' : '';
+                    html += `<button type="button" class="source-chip${on}" onclick="toggleChip('${s.id}')"><span>${escapeHtml(s.logo || '')}</span>${escapeHtml(s.label)}</button>`;
+                });
+                html += `</div></div>`;
+            }
+            container.innerHTML = html || '<p class="source-count">Aucun groupe ne correspond.</p>';
+            refreshSourceCounts();
+        }
+
+        function toggleChip(id) {
+            if (selectedSources.has(id)) selectedSources.delete(id);
+            else selectedSources.add(id);
+            renderSources();
+        }
+
+        function refreshSourceCounts() {
+            const badge = document.getElementById('sourceCount');
+            if (!badge) return;
+            const n = selectedSources.size;
+            badge.textContent = `${n} sélectionné${n > 1 ? 's' : ''}`;
+        }
+
+        function toggleSource(id, el) {
+            if (el.checked) selectedSources.add(id);
+            else selectedSources.delete(id);
+            const group = el.closest('.sources-group');
+            if (group) {
+                const name = group.querySelector('summary span');
+                const sources = availableSources[name ? name.textContent : ''] || [];
+                const chosen = sources.filter(s => selectedSources.has(s.id)).length;
+                const count = group.querySelector('.source-count');
+                if (count && sources.length) count.textContent = `${chosen} / ${sources.length}`;
+            }
+            refreshSourceCounts();
+        }
+
+        function toggleAllSources(select) {
+            for (const sources of Object.values(availableSources)) {
+                sources.forEach(s => {
+                    if (select) selectedSources.add(s.id);
+                    else selectedSources.delete(s.id);
+                });
+            }
+            renderSources();
+        }
+
+        function selectOnlyCapfun() {
+            selectedSources = new Set(['capfun']);
+            renderSources();
+        }
+
+        setTheme(document.documentElement.getAttribute('data-theme') || 'harvest');
+        loadSources();
+
+        // ===== MODE SWITCH =====
+        function switchMode(mode) {
+            activeMode = mode;
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.mode-form').forEach(f => f.style.display = 'none');
+            const forms = {
+                camping: 'campingForm',
+                universal: 'universalForm',
+                smart: 'smartForm',
+                mairie: 'mairieForm'
+            };
+            document.getElementById(forms[mode] || 'campingForm').style.display = 'block';
+            const tabs = document.querySelectorAll('.mode-tab');
+            const index = { camping: 0, universal: 1, smart: 2, mairie: 3 }[mode] || 0;
+            if (tabs[index]) tabs[index].classList.add('active');
+            document.querySelector('.sources-section').style.display = mode === 'camping' ? 'block' : 'none';
+        }
+
+        function startUniversalSearch() {
+            const query = document.getElementById('universalQuery').value;
+            const pays = document.getElementById('universalPays').value;
+            const region = document.getElementById('universalRegion').value;
+            const ville = document.getElementById('universalVille').value;
+            const maxResults = parseInt(document.getElementById('universalMaxResults').value) || 20;
+            const debugMode = document.getElementById('universalDebugMode').checked;
+            const btn = document.getElementById('universalSearchBtn');
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            if (!query) {
+                alert('Veuillez entrer une recherche');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Recherche...';
+            document.getElementById('universalStopBtn').style.display = 'inline-block';
+            status.classList.add('active', 'loading');
+            statusText.textContent = 'Recherche Google en cours...';
+            
+            currentHistoryId = null;
+            currentLoadedHistoryId = null;
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsCount').style.display = 'none';
+            
+            // Construire la query Google avec localisation
+            let fullQuery = query;
+            if (ville) fullQuery += ` ${ville}`;
+            if (region) fullQuery += ` ${region}`;
+            if (pays) fullQuery += ` ${pays}`;
+
+            fetch('/search_universal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: fullQuery, max_results: maxResults, debug_mode: debugMode, project_id: currentProjectId() })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    resetUniversalButton();
+                    return;
+                }
+                statusInterval = setInterval(checkStatus, 1500);
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Erreur lors de la recherche');
+                resetUniversalButton();
+            });
+        }
+
+        function resetUniversalButton() {
+            const btn = document.getElementById('universalSearchBtn');
+            btn.disabled = false;
+            btn.innerHTML = '🔍 Rechercher';
+            document.getElementById('universalStopBtn').style.display = 'none';
+            document.getElementById('status').classList.remove('active', 'loading');
+            document.getElementById('statusText').textContent = 'Prêt à rechercher...';
+        }
+
+        function startSmartSearch() {
+            const query = document.getElementById('smartQuery').value;
+            const pays = document.getElementById('smartPays').value;
+            const region = document.getElementById('smartRegion').value;
+            const ville = document.getElementById('smartVille').value;
+            const maxResults = parseInt(document.getElementById('smartMaxResults').value) || 15;
+            const debugMode = document.getElementById('smartDebugMode').checked;
+            const btn = document.getElementById('smartSearchBtn');
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            if (!query) {
+                alert('Veuillez entrer une recherche');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Recherche...';
+            document.getElementById('smartStopBtn').style.display = 'inline-block';
+            status.classList.add('active', 'loading');
+            statusText.textContent = 'Recherche intelligente en cours...';
+            
+            currentHistoryId = null;
+            currentLoadedHistoryId = null;
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsCount').style.display = 'none';
+            
+            // Construire la query Google avec localisation
+            let fullQuery = query;
+            if (ville && ville.trim()) fullQuery += ` ${ville.trim()}`;
+            if (region && region.trim()) fullQuery += ` ${region.trim()}`;
+            if (pays && pays.trim() && pays !== "" && !pays.includes("Veuillez")) fullQuery += ` ${pays.trim()}`;
+
+            fetch('/search_smart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: fullQuery, max_results: maxResults, debug_mode: debugMode, project_id: currentProjectId() })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    resetSmartButton();
+                    return;
+                }
+                statusInterval = setInterval(checkStatus, 1500);
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Erreur lors de la recherche');
+                resetSmartButton();
+            });
+        }
+
+        function resetSmartButton() {
+            const btn = document.getElementById('smartSearchBtn');
+            btn.disabled = false;
+            btn.innerHTML = '🎯 Rechercher';
+            document.getElementById('smartStopBtn').style.display = 'none';
+            document.getElementById('status').classList.remove('active', 'loading');
+            document.getElementById('statusText').textContent = 'Prêt à rechercher...';
+        }
+
+        function loadMairieGeo() {
+            fetch('/geo/regions')
+            .then(r => r.json())
+            .then(regions => {
+                const sel = document.getElementById('mairieRegion');
+                if (!Array.isArray(regions)) return;
+                sel.innerHTML = '<option value="ALL">Toute la France</option>' +
+                    regions.map(r => `<option value="${escapeHtml(r.code)}">${escapeHtml(r.nom)}</option>`).join('');
+                fillMairieDepartements();
+            })
+            .catch(() => {});
+            fetch('/geo/departements')
+            .then(r => r.json())
+            .then(deps => {
+                geoDepartements = Array.isArray(deps) ? deps : [];
+                fillMairieDepartements();
+            })
+            .catch(() => {});
+        }
+
+        function fillMairieDepartements() {
+            const region = document.getElementById('mairieRegion').value;
+            const sel = document.getElementById('mairieDepartement');
+            const current = sel.value;
+            if (region === 'ALL') {
+                sel.disabled = true;
+                sel.innerHTML = '<option value="">Tous les départements</option>';
+                return;
+            }
+            sel.disabled = false;
+            const rows = geoDepartements.filter(d => !region || d.codeRegion === region);
+            sel.innerHTML = '<option value="">Tous les départements</option>' +
+                rows.map(d => `<option value="${escapeHtml(d.code)}">${escapeHtml(d.nom)}</option>`).join('');
+            if (rows.some(d => d.code === current)) sel.value = current;
+        }
+
+        function startMairieSearch() {
+            const region = document.getElementById('mairieRegion').value;
+            const departement = document.getElementById('mairieDepartement').value;
+            const maxRaw = document.getElementById('mairieMaxResults').value;
+            const maxResults = maxRaw ? parseInt(maxRaw, 10) : 0;
+            const minRaw = document.getElementById('mairieMinPopulation').value;
+            const minPopulation = minRaw ? parseInt(minRaw, 10) : 0;
+            const scanSites = document.getElementById('mairieScanSites').checked;
+            const kinds = [];
+            if (document.getElementById('kindMairie').checked) kinds.push('mairie');
+            if (document.getElementById('kindEpci').checked) kinds.push('epci');
+            if (document.getElementById('kindCd').checked) kinds.push('cd');
+            if (document.getElementById('kindCr').checked) kinds.push('cr');
+            if (document.getElementById('kindOt').checked) kinds.push('ot');
+            if (document.getElementById('kindScene').checked) kinds.push('scene');
+            if (document.getElementById('kindFete').checked) kinds.push('fete');
+            if (document.getElementById('kindAsso').checked) kinds.push('asso');
+            if (document.getElementById('kindCe').checked) kinds.push('ce');
+            if (document.getElementById('kindProd').checked) kinds.push('prod');
+            if (!kinds.length) {
+                alert('Choisissez au moins un type de structure');
+                return;
+            }
+            const btn = document.getElementById('mairieSearchBtn');
+            const status = document.getElementById('status');
+
+            const allFrance = region === 'ALL';
+            if (!allFrance && !region && !departement) {
+                alert('Choisissez toute la France, une région ou un département');
+                return;
+            }
+            if (allFrance && scanSites) {
+                const go = confirm("Toute la France avec les e-mails socioculturels peut prendre plusieurs heures. Laisse cette page ouverte. Continuer ?");
+                if (!go) return;
+            }
+
+            activeMode = 'mairie';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Recherche...';
+            document.getElementById('mairieStopBtn').style.display = 'inline-block';
+            status.classList.add('active', 'loading');
+            document.getElementById('statusText').textContent = "Chargement de l'annuaire des mairies…";
+
+            lastKnownCount = -1;
+            lastRevision = -1;
+            currentHistoryId = null;
+            currentLoadedHistoryId = null;
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsCount').style.display = 'none';
+
+            fetch('/search_mairies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    region: allFrance ? 'ALL' : region,
+                    departement: allFrance ? '' : departement,
+                    scan_sites: scanSites,
+                    max_results: maxResults,
+                    min_population: minPopulation,
+                    kinds: kinds,
+                    project_id: currentProjectId()
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    resetMairieButton(false);
+                    return;
+                }
+                statusInterval = setInterval(checkStatus, 1500);
+            })
+            .catch(err => {
+                alert('Erreur: ' + err.message);
+                resetMairieButton(false);
+            });
+        }
+
+        function resetMairieButton(keepStatus) {
+            const btn = document.getElementById('mairieSearchBtn');
+            btn.disabled = false;
+            btn.innerHTML = '🏛️ Lancer';
+            document.getElementById('mairieStopBtn').style.display = 'none';
+            document.getElementById('status').classList.remove('loading');
+            if (!keepStatus) {
+                document.getElementById('status').classList.remove('active');
+                document.getElementById('statusText').textContent = 'Prêt à rechercher...';
+            }
+        }
+
+        function startSearch() {
+            const keyword = document.getElementById('keyword').value;
+            const maxResults = parseInt(document.getElementById('maxResults').value) || 50;
+            const debugMode = document.getElementById('debugMode').checked;
+            const sources = selectedSources.size > 0 ? Array.from(selectedSources) : ['capfun'];
+            const btn = document.getElementById('searchBtn');
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Recherche en cours...';
+            document.getElementById('stopBtn').style.display = 'inline-block';
+            status.classList.add('active', 'loading');
+            statusText.textContent = 'Récupération des régions...';
+            
+            // Cacher les résultats précédents et reset compteur
+            lastKnownCount = -1;
+            currentHistoryId = null;
+            currentLoadedHistoryId = null;
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsCount').style.display = 'none';
+            
+            // Lancer la recherche
+            fetch('/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyword, max_results: maxResults, debug_mode: debugMode, sources, project_id: currentProjectId() })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    resetButton();
+                    return;
+                }
+                
+                // Poll pour les résultats (plus rapide pour temps réel)
+                statusInterval = setInterval(checkStatus, 1000);
+                loadResults(); // charger immédiatement
+            })
+            .catch(err => {
+                alert('Erreur: ' + err.message);
+                resetButton();
+            });
+        }
+        
+        function checkStatus() {
+            fetch('/status')
+            .then(res => res.json())
+            .then(data => {
+                const statusText = document.getElementById('statusText');
+                const revision = data.revision || 0;
+                let statusTextMsg = '';
+                if (data.in_progress) {
+                    statusTextMsg = data.detail
+                        ? data.detail
+                        : `🔍 Recherche en cours... ${data.count} résultat${data.count > 1 ? 's' : ''} trouvé${data.count > 1 ? 's' : ''}`;
+                } else if (activeMode === 'mairie' && data.detail) {
+                    statusTextMsg = data.detail;
+                } else {
+                    statusTextMsg = `✅ Recherche terminée ! ${data.count} résultat${data.count > 1 ? 's' : ''} trouvé${data.count > 1 ? 's' : ''}`;
+                }
+                statusText.textContent = statusTextMsg;
+                
+                if (data.count !== lastKnownCount || revision !== lastRevision) {
+                    lastKnownCount = data.count;
+                    lastRevision = revision;
+                    loadResults();
+                }
+                
+                if (!data.in_progress) {
+                    clearInterval(statusInterval);
+                    if (activeMode === 'mairie') resetMairieButton(true);
+                    else resetButton();
+                    // Forcer un dernier chargement complet
+                    loadResults();
+                    // Récupérer l'id du dernier historique pour l'export
+                    loadHistory().then(history => {
+                        if (history && history.length > 0) {
+                            currentHistoryId = history[0].id;
+                            currentLoadedHistoryId = null;
+                        }
+                    });
+                }
+            })
+            .catch(() => {
+                // Ignorer les erreurs réseau temporaires pendant le polling
+            });
+        }
+        
+        function loadResults() {
+            fetch('/results')
+            .then(res => res.json())
+            .then(data => displayResults(data));
+        }
+        
+        function resetButton() {
+            const btn = document.getElementById('searchBtn');
+            const status = document.getElementById('status');
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Lancer la recherche';
+            document.getElementById('stopBtn').style.display = 'none';
+            status.classList.remove('loading');
+        }
+        
+        function stopSearch() {
+            fetch('/stop', { method: 'POST' })
+            .then(() => {
+                document.getElementById('statusText').textContent = 'Arrêt demandé...';
+            });
+        }
+        
+        let currentHistoryId = null; // ID de la dernière recherche terminée
+        let currentLoadedHistoryId = null; // ID chargé depuis l'historique
+        
+        function exportResults() {
+            const fmt = document.getElementById('exportFormat').value;
+            const mode = document.getElementById('exportMode').value;
+            // Utiliser l'id historique si dispo (plus fiable que le cache serveur)
+            const hid = currentLoadedHistoryId || currentHistoryId;
+            let url = `/export?format=${fmt}&mode=${mode}`;
+            if (hid) url += `&history_id=${hid}`;
+            downloadExport(url);
+        }
+        
+        function exportFromHistory(historyId, format, mode) {
+            format = format || 'xlsx';
+            mode = mode || 'all';
+            downloadExport(`/export?format=${format}&mode=${mode}&history_id=${historyId}`);
+        }
+        
+        function downloadExport(url) {
+            fetch(url)
+            .then(res => {
+                if (!res.ok) {
+                    return res.text().then(t => { throw new Error(t); });
+                }
+                const disposition = res.headers.get('Content-Disposition') || '';
+                const match = disposition.match(/filename="?([^"]+)"?/);
+                const filename = match ? match[1] : 'export.xlsx';
+                return res.blob().then(blob => ({ blob, filename }));
+            })
+            .then(({ blob, filename }) => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+            })
+            .catch(err => {
+                alert('Erreur export : ' + err.message);
+            });
+        }
+        
+        // ===== HISTORIQUE =====
+        function loadHistory() {
+            return fetch('/history')
+            .then(res => res.json())
+            .then(history => {
+                const container = document.getElementById('historyContainer');
+                if (!history || history.length === 0) {
+                    container.innerHTML = '<p style="color: #adb5bd; text-align: center; padding: 20px;">Aucune recherche dans l\'historique</p>';
+                    return history;
+                }
+                let html = '';
+                history.forEach(h => {
+                    html += `
+                        <div class="history-item">
+                            <div class="history-info">
+                                <div class="history-keyword">🔍 ${escapeHtml(h.keyword)}</div>
+                                <div class="history-meta">${h.date} · ${h.count} résultats · max=${h.max_results}</div>
+                            </div>
+                            <div class="history-actions">
+                                <button class="btn-load" onclick="loadHistoryEntry(${h.id})">📂 Charger</button>
+                                <button class="btn-export-h" onclick="exportFromHistory(${h.id}, 'xlsx', 'all')">📊 Excel</button>
+                                <button class="btn-export-h" onclick="exportFromHistory(${h.id}, 'csv', 'all')">📄 CSV</button>
+                                <button class="btn-delete" onclick="deleteHistory(${h.id})">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+                return history;
+            });
+        }
+        
+        function loadHistoryEntry(id) {
+            fetch(`/history/${id}`)
+            .then(res => res.json())
+            .then(entry => {
+                if (entry.error) { alert(entry.error); return; }
+                // Afficher les résultats de l'historique dans la zone résultats
+                displayResults(entry.results);
+                currentLoadedHistoryId = id;
+                document.getElementById('statusText').textContent = 
+                    `📂 Historique chargé : "${entry.keyword}" - ${entry.count} campings (${entry.date})`;
+                document.getElementById('status').classList.add('active');
+                window.scrollTo({ top: document.getElementById('resultsContainer').offsetTop - 20, behavior: 'smooth' });
+            });
+        }
+        
+        function deleteHistory(id) {
+            showSwal({
+                title: 'Supprimer la recherche ?',
+                text: 'Cette action supprimera définitivement cette recherche de l\'historique.',
+                confirmButtonText: 'Supprimer',
+                cancelButtonText: 'Annuler'
+            }).then((confirm) => {
+                if (confirm) {
+                    fetch(`/history/${id}`, { method: 'DELETE' })
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error('Erreur lors de la suppression');
+                        }
+                        return res.json();
+                    })
+                    .then(() => {
+                        loadHistory();
+                        // Si c'est l'élément actuellement chargé, le réinitialiser
+                        if (currentLoadedHistoryId == id) {
+                            currentLoadedHistoryId = null;
+                            document.getElementById('resultsContainer').style.display = 'none';
+                            document.getElementById('emptyState').style.display = 'block';
+                            document.getElementById('resultsCount').style.display = 'none';
+                            document.getElementById('statusText').textContent = 'Prêt à rechercher...';
+                            document.getElementById('status').classList.remove('active');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Erreur suppression historique:', err);
+                        showSwal({
+                            title: 'Erreur',
+                            text: 'Impossible de supprimer cette recherche. Veuillez réessayer.',
+                            confirmButtonText: 'OK',
+                            cancelButtonText: ''
+                        });
+                    });
+                }
+            });
+        }
+        
+        function clearHistory() {
+            showSwal({
+                title: 'Vider tout l\'historique ?',
+                text: 'Cette action supprimera définitivement toutes les recherches de l\'historique.',
+                confirmButtonText: 'Vider',
+                cancelButtonText: 'Annuler'
+            }).then((confirm) => {
+                if (confirm) {
+                    fetch('/history/clear', { method: 'POST' })
+                    .then(() => {
+                        loadHistory();
+                        // Réinitialiser l'affichage
+                        currentLoadedHistoryId = null;
+                        currentHistoryId = null;
+                        document.getElementById('resultsContainer').style.display = 'none';
+                        document.getElementById('emptyState').style.display = 'block';
+                        document.getElementById('resultsCount').style.display = 'none';
+                        document.getElementById('statusText').textContent = 'Prêt à rechercher...';
+                        document.getElementById('status').classList.remove('active');
+                    })
+                    .catch(err => {
+                        console.error('Erreur vidage historique:', err);
+                        showSwal({
+                            title: 'Erreur',
+                            text: 'Impossible de vider l\'historique. Veuillez réessayer.',
+                            confirmButtonText: 'OK',
+                            cancelButtonText: ''
+                        });
+                    });
+                }
+            });
+        }
+        
+        function formatHabitants(value) {
+            if (value === null || value === undefined || value === '') return '—';
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '—';
+            return n.toLocaleString('fr-FR');
+        }
+
+        function resultLabel(data) {
+            if (!data.length) return '0 résultat';
+            const n = data.length;
+            const plural = n > 1 ? 's' : '';
+            if (data[0].source === 'mairie') {
+                const mairies = data.filter(item => item.groupe === 'Mairie').length;
+                const autres = n - mairies;
+                const socio = data.filter(item => item.email_socioculturel).length;
+                let text = `${mairies} mairie${mairies > 1 ? 's' : ''}`;
+                if (autres) text += ` · ${autres} autre${autres > 1 ? 's' : ''}`;
+                text += ` · ${socio} e-mail${socio > 1 ? 's' : ''} socioculturel${socio > 1 ? 's' : ''}`;
+                return text;
+            }
+            if (data[0].source === 'smart_search' || data[0].source === 'universal') {
+                return `${n} résultat${plural}`;
+            }
+            return `${n} camping${plural}`;
+        }
+
+        function groupKey(item) {
+            if (item.source === 'mairie') {
+                return `${item.region || 'Région inconnue'} — ${item.departement || 'Département inconnu'}`;
+            }
+            return item.region || 'Autres';
+        }
+
+        function displayResults(data) {
+            const regionsContainer = document.getElementById('regionsContainer');
+            const container = document.getElementById('resultsContainer');
+            const emptyState = document.getElementById('emptyState');
+            const countBadge = document.getElementById('resultsCount');
+            
+            if (!data || data.length === 0) {
+                container.style.display = 'none';
+                emptyState.style.display = 'block';
+                countBadge.style.display = 'none';
+                return;
+            }
+
+            const isMairie = data[0].source === 'mairie';
+            const grouped = {};
+            data.forEach(item => {
+                const key = groupKey(item);
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(item);
+            });
+            
+            let html = '';
+            Object.keys(grouped).sort().forEach(region => {
+                const camps = grouped[region];
+                const unit = isMairie ? 'fiche' : 'résultat';
+                html += `
+                    <div class="region-group">
+                        <h3 class="region-title" onclick="this.parentElement.classList.toggle('collapsed')">
+                            <span class="region-title-left">${escapeHtml(region)}</span>
+                            <span class="region-count">${camps.length} ${unit}${camps.length > 1 ? 's' : ''}</span>
+                        </h3>
+                        <div class="region-table-wrap">
+                        <table class="${isMairie ? 'contacts' : ''}">
+                            <thead>
+                                <tr>
+                `;
+                if (isMairie) {
+                    html += `<th>Type</th><th>Nom</th><th class="col-pop">Habitants</th><th class="col-cp">Code postal</th><th>E-mail</th><th>E-mail socioculturel</th><th class="col-phone">Téléphone</th><th>Site</th>`;
+                } else {
+                    html += `<th>Nom</th><th>Groupe</th><th>Région</th><th>Email</th><th>Téléphone</th><th>Site</th>`;
+                }
+                html += `</tr></thead><tbody>`;
+                camps.forEach(item => {
+                    const links = [];
+                    if (item.url) links.push(`<a href="${escapeHtml(item.url)}" target="_blank">Site</a>`);
+                    if (item.recherche_url) links.push(`<a href="${escapeHtml(item.recherche_url)}" target="_blank">Chercher</a>`);
+                    const site = links.length ? links.join(' · ') : '—';
+                    if (isMairie) {
+                        const socio = item.email_socioculturel
+                            ? `${escapeHtml(item.email_socioculturel)}${item.service_socioculturel ? `<div style="color:var(--gray-500);font-size:0.75rem;">${escapeHtml(item.service_socioculturel)}</div>` : ''}`
+                            : '—';
+                        html += `
+                            <tr>
+                                <td>${escapeHtml(item.groupe || 'Mairie')}</td>
+                                <td><strong>${escapeHtml(item.commune || item.nom)}</strong></td>
+                                <td class="col-pop">${formatHabitants(item.population)}</td>
+                                <td class="col-cp">${escapeHtml(item.code_postal || '—')}</td>
+                                <td class="col-mail ${item.email_mairie ? 'email' : 'no-email'}">${item.email_mairie ? escapeHtml(item.email_mairie) : '—'}</td>
+                                <td class="col-socio ${item.email_socioculturel ? 'email' : 'no-email'}">${socio}</td>
+                                <td class="col-phone ${item.phone ? 'email' : 'no-email'}">${item.phone ? escapeHtml(item.phone) : '—'}</td>
+                                <td>${site}</td>
+                            </tr>
+                        `;
+                    } else {
+                        html += `
+                            <tr>
+                                <td><strong>${escapeHtml(item.nom)}</strong></td>
+                                <td><span class="region-pill">${escapeHtml(item.groupe || item.source || '—')}</span></td>
+                                <td><span class="region-pill">${escapeHtml(item.region || '—')}</span></td>
+                                <td class="${item.email ? 'email' : 'no-email'}">${item.email ? escapeHtml(item.email) : '—'}</td>
+                                <td class="${item.phone ? 'email' : 'no-email'}">${item.phone ? escapeHtml(item.phone) : '—'}</td>
+                                <td>${site}</td>
+                            </tr>
+                        `;
+                    }
+                });
+                html += `</tbody></table></div></div>`;
+            });
+            
+            regionsContainer.innerHTML = html;
+            container.style.display = 'block';
+            emptyState.style.display = 'none';
+            countBadge.textContent = resultLabel(data);
+            countBadge.style.display = 'inline-block';
+        }
+        
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Charger l'historique et les listes géographiques au démarrage
+        loadHistory();
+        loadMairieGeo();
+    </script>
+<!-- Popup style SweetAlert2 -->
+    <div id="swal-overlay" class="swal-overlay">
+        <div class="swal-modal">
+            <div id="swal-title" class="swal-title"></div>
+            <div id="swal-text" class="swal-text"></div>
+            <div class="swal-button-container">
+                <button id="swal-cancel" class="swal-button swal-button--cancel">Annuler</button>
+                <button id="swal-confirm" class="swal-button swal-button--confirm">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fonctions popup style SweetAlert2
+        function showSwal(options) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('swal-overlay');
+                const title = document.getElementById('swal-title');
+                const text = document.getElementById('swal-text');
+                const confirmBtn = document.getElementById('swal-confirm');
+                const cancelBtn = document.getElementById('swal-cancel');
+                
+                title.textContent = options.title || '';
+                text.textContent = options.text || '';
+                confirmBtn.textContent = options.confirmButtonText || 'OK';
+                cancelBtn.textContent = options.cancelButtonText || 'Annuler';
+                
+                // Afficher le popup
+                overlay.classList.add('show');
+                
+                // Gérer les clics
+                const handleConfirm = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                
+                const handleCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
+                
+                const cleanup = () => {
+                    overlay.classList.remove('show');
+                    confirmBtn.removeEventListener('click', handleConfirm);
+                    cancelBtn.removeEventListener('click', handleCancel);
+                };
+                
+                confirmBtn.addEventListener('click', handleConfirm);
+                cancelBtn.addEventListener('click', handleCancel);
+                
+                // Fermer au clic sur l'overlay
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        cleanup();
+                        resolve(false);
+                    }
+                });
+            });
+        }
+    </script>
+    <script src="{{ url_for('static', filename='js/board.js') }}"></script>
+    </div>
+</div>
+</body>
+</html>
