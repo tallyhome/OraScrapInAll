@@ -383,6 +383,12 @@ html[data-theme="scrapeo"] .nav-btn.active {
 
 .classic-head { display: none; }
 
+.update-status {
+    color: var(--gray-800);
+    font-weight: 650;
+    margin: 8px 0 12px;
+}
+
 .update-banner {
     margin: 0 24px;
     padding: 10px 14px;

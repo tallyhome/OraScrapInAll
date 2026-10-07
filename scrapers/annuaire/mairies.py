@@ -85,6 +85,8 @@ LINK_SCORES = (
 
 
 def _get_json(url, timeout=30):
+    from scrapers.systeme.netguard import ensure_public_url
+    ensure_public_url(url)
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         import json
@@ -411,6 +413,8 @@ class _LinkParser(HTMLParser):
 
 
 def _http_get(url, timeout=7, max_bytes=350000):
+    from scrapers.systeme.netguard import ensure_public_url
+    ensure_public_url(url)
     req = urllib.request.Request(
         url,
         headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
@@ -653,7 +657,7 @@ def _passes_population(row, min_population):
     return population >= min_population
 
 
-def collect_mairies(region_code, departement_code, results_cache, stop_flag, scan_sites=True, max_results=0, on_detail=None, all_france=False, min_population=0, kinds=None):
+def collect_mairies(region_code, departement_code, results_cache, stop_flag, scan_sites=True, max_results=0, on_detail=None, all_france=False, min_population=0, kinds=None, skip_codes=None, on_department=None):
     """
     Remplit results_cache avec une ligne par commune.
     max_results <= 0 : pas de plafond.
@@ -665,6 +669,7 @@ def collect_mairies(region_code, departement_code, results_cache, stop_flag, sca
     if "cr" in selected:
         regional_records = _fetch_records('nom like "Conseil régional -%"', stop_flag)
     regions_done = set()
+    skip = {str(code) for code in (skip_codes or [])}
     departements = _departements_for(region_code, departement_code, all_france=all_france)
     if not departements:
         raise ValueError("Région ou département introuvable")
@@ -678,6 +683,11 @@ def collect_mairies(region_code, departement_code, results_cache, stop_flag, sca
         if stop_flag():
             break
         code = departement["code"]
+        if code in skip:
+            region_name = departement.get("region") or ""
+            if region_name:
+                regions_done.add(region_name)
+            continue
         detail(f"Annuaire {departement['nom']}…")
         communes = _load_communes(code)
         epcis = _load_epcis(code) if "epci" in selected else {}
@@ -759,6 +769,10 @@ def collect_mairies(region_code, departement_code, results_cache, stop_flag, sca
                         )
             finally:
                 pool.shutdown(wait=not stop_flag(), cancel_futures=True)
+        if on_department and not stop_flag():
+            on_department(code)
+        if stop_flag():
+            break
         if max_results and len(results_cache) >= max_results:
             break
 

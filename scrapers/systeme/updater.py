@@ -9,6 +9,7 @@ import threading
 import urllib.error
 import urllib.request
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 REPO = "tallyhome/OraScrapInAll"
@@ -50,7 +51,7 @@ def project_root() -> Path:
 ROOT = project_root()
 VERSION_FILE = ROOT / "VERSION"
 UPDATES_DIR = ROOT / "data" / "updates"
-SKIP_TOP = {"data", "runtime", "archives", ".git", ".venv", "updates", "__pycache__"}
+SKIP_TOP = {"data", "runtime", "archives", ".git", ".venv", "updates", "__pycache__", "backups"}
 
 
 def read_version() -> str:
@@ -98,11 +99,40 @@ def _allowed(url: str) -> bool:
     path = parts.path or ""
     if host == "api.github.com":
         return path.startswith(f"/repos/{REPO}/")
-    if host in ("github.com", "codeload.github.com"):
+    if host == "github.com":
+        return path.startswith(f"/{REPO}/")
+    if host == "codeload.github.com":
         return path.startswith(f"/{REPO}/")
     if host == "objects.githubusercontent.com":
+        return False
+    return False
+
+
+class _GuardRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _allowed_redirect(newurl):
+            raise RuntimeError("Redirection de mise à jour refusée.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _allowed_redirect(url: str) -> bool:
+    import urllib.parse
+    parts = urllib.parse.urlparse(url)
+    if parts.scheme != "https" or parts.username or parts.password:
+        return False
+    host = (parts.hostname or "").lower()
+    path = parts.path or ""
+    if host == "github.com":
+        return path.startswith(f"/{REPO}/")
+    if host == "codeload.github.com":
+        return path.startswith(f"/{REPO}/")
+    if host == "objects.githubusercontent.com" or host.endswith(".githubusercontent.com"):
         return True
     return False
+
+
+def _opener():
+    return urllib.request.build_opener(_GuardRedirect)
 
 
 def _get_json(url: str):
@@ -113,7 +143,7 @@ def _get_json(url: str):
         headers={"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with _opener().open(request, timeout=20) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
@@ -212,7 +242,7 @@ def _download(url: str) -> bytes:
     _set(busy=True, percent=10, message="Téléchargement de la mise à jour…")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(request, timeout=180) as response:
+        with _opener().open(request, timeout=180) as response:
             raw = response.read()
     except urllib.error.URLError as exc:
         raise RuntimeError(f"Téléchargement impossible. {exc.reason}") from exc
@@ -268,7 +298,7 @@ def _schedule_replace(staging: Path) -> None:
             "  Start-Sleep -Milliseconds 400",
             "}",
             "Start-Sleep -Seconds 1",
-            "$skip = @('data','runtime','archives','.git','.venv','updates','__pycache__')",
+            "$skip = @('data','runtime','archives','.git','.venv','updates','__pycache__','backups')",
             "Get-ChildItem -LiteralPath $Src | Where-Object { $skip -notcontains $_.Name } | ForEach-Object {",
             "  Log ('copie ' + $_.Name)",
             "  Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Dst $_.Name) -Recurse -Force",
@@ -313,9 +343,36 @@ def _schedule_replace(staging: Path) -> None:
     threading.Thread(target=_exit_soon, daemon=True, name="orascrap-exit").start()
 
 
+def backup_data() -> str:
+    """Copie data/ avant une mise à jour. Le dossier updates (téléchargement) est laissé de côté."""
+    source = ROOT / "data"
+    if not source.is_dir():
+        return ""
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    destination = ROOT / "backups" / f"data-{stamp}"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("updates", "*.tmp"))
+    copies = sorted(
+        (path for path in destination.parent.iterdir() if path.is_dir() and path.name.startswith("data-")),
+        key=lambda path: path.name,
+        reverse=True,
+    )
+    for old in copies[5:]:
+        shutil.rmtree(old, ignore_errors=True)
+    return str(destination)
+
+
 def _run_apply() -> None:
     try:
-        _set(busy=True, error="", applied=False, percent=5, message="Vérification de la version…")
+        _set(busy=True, error="", applied=False, percent=5, message="Copie de sauvegarde des données…")
+        try:
+            folder = backup_data()
+            if folder:
+                _set(percent=8, message="Copie des données terminée.")
+        except OSError as exc:
+            _set(busy=False, error=f"Sauvegarde impossible : {exc}"[:300], message="")
+            return
+        _set(percent=10, message="Vérification de la version…")
         state = check_for_update()
         if not state.get("update_available"):
             _set(busy=False, percent=100, message=state.get("message") or "Déjà à jour.")

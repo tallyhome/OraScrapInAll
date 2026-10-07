@@ -99,8 +99,10 @@ def _emails_from_pdf(url):
         import fitz
     except ImportError:
         return []
+    from scrapers.systeme.netguard import ensure_public_url
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/pdf"})
     try:
+        ensure_public_url(url)
         with urllib.request.urlopen(req, timeout=20) as resp:
             data = resp.read(6_000_000)
     except Exception:
@@ -204,6 +206,11 @@ def read_public_profile(url, stop_flag=None):
     """
     stop_flag = stop_flag or (lambda: False)
     if not url or not _is_social(url) or stop_flag():
+        return "", "", []
+    from scrapers.systeme.netguard import ensure_public_url
+    try:
+        ensure_public_url(url)
+    except ValueError:
         return "", "", []
     req = urllib.request.Request(
         url,
@@ -382,6 +389,8 @@ def _iso_code(dep_code):
 
 
 def _overpass(query):
+    from scrapers.systeme.netguard import ensure_public_url
+    ensure_public_url(OVERPASS_URL)
     body = urllib.parse.urlencode({"data": query}).encode()
     req = urllib.request.Request(
         OVERPASS_URL,

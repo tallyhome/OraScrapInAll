@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}?v=4">
     <script>
         (function () {
             var theme = localStorage.getItem('orascrap-theme') || 'basic';
@@ -71,6 +71,7 @@
             </nav>
         </header>
         <div id="updateBanner" class="update-banner" hidden></div>
+        <div id="resumeBanner" class="update-banner" hidden></div>
         <header class="topbar">
             <div>
                 <h1 id="pageTitle">Tableau de bord</h1>
@@ -196,10 +197,10 @@
             </form>
             <div class="card" id="updateCard" style="margin-top:14px">
                 <h2>Mise à jour</h2>
-                <p id="updateMessage" class="empty-note">Vérification sur GitHub…</p>
+                <p id="updateMessage" class="update-status">Pas encore vérifié.</p>
                 <p id="updateNotes" class="empty-note"></p>
                 <div class="row-actions">
-                    <button type="button" class="btn-quiet" onclick="checkUpdate()">Vérifier</button>
+                    <button type="button" class="btn-quiet" id="checkUpdateBtn" onclick="checkUpdate()">Vérifier</button>
                     <button type="button" class="btn-primary" onclick="runUpdate()">Mettre à jour</button>
                 </div>
             </div>
@@ -921,6 +922,15 @@
                 const statusText = document.getElementById('statusText');
                 const revision = data.revision || 0;
                 let statusTextMsg = '';
+                const resumeBanner = document.getElementById('resumeBanner');
+                if (resumeBanner) {
+                    if (data.in_progress && data.resumed) {
+                        resumeBanner.hidden = false;
+                        resumeBanner.textContent = data.detail || 'Reprise de la recherche Toute la France…';
+                    } else {
+                        resumeBanner.hidden = true;
+                    }
+                }
                 if (data.in_progress) {
                     statusTextMsg = data.detail
                         ? data.detail
@@ -930,7 +940,7 @@
                 } else {
                     statusTextMsg = `✅ Recherche terminée ! ${data.count} résultat${data.count > 1 ? 's' : ''} trouvé${data.count > 1 ? 's' : ''}`;
                 }
-                statusText.textContent = statusTextMsg;
+                if (statusText) statusText.textContent = statusTextMsg;
                 
                 if (data.count !== lastKnownCount || revision !== lastRevision) {
                     lastKnownCount = data.count;
@@ -1273,6 +1283,12 @@
         // Charger l'historique et les listes géographiques au démarrage
         loadHistory();
         loadMairieGeo();
+        fetch('/status').then(res => res.json()).then(data => {
+            if (data.in_progress) {
+                statusInterval = setInterval(checkStatus, 1500);
+                checkStatus();
+            }
+        }).catch(() => {});
     </script>
 <!-- Popup style SweetAlert2 -->
     <div id="swal-overlay" class="swal-overlay">
@@ -1334,7 +1350,7 @@
             });
         }
     </script>
-    <script src="{{ url_for('static', filename='js/board.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/board.js') }}?v=4"></script>
     </div>
 </div>
 </body>

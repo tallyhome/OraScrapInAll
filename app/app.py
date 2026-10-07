@@ -1,5 +1,6 @@
 import os
 import sys
+import urllib.parse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE) if os.path.basename(_HERE) == "app" else _HERE
@@ -31,6 +32,40 @@ from scrapers.systeme.workspace import (
 )
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+app.config["PROPAGATE_EXCEPTIONS"] = False
+
+
+@app.before_request
+def _local_only():
+    remote = request.remote_addr or ""
+    if remote not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Accès refusé"}), 403
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        origin = request.headers.get("Origin", "")
+        if origin:
+            host = urllib.parse.urlparse(origin).hostname
+            if host not in ("127.0.0.1", "localhost"):
+                return jsonify({"error": "Origine refusée"}), 403
+        if request.headers.get("Sec-Fetch-Site") == "cross-site":
+            return jsonify({"error": "Requête externe refusée"}), 403
+
+
+@app.after_request
+def _security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'none'"
+    )
+    return response
 
 # Cache pour stocker les résultats
 results_cache = []
@@ -38,6 +73,7 @@ search_in_progress = False
 search_stop_requested = False
 search_detail = ""
 search_revision = 0
+search_resumed = False
 job_meta = {}
 
 def _project_root():
@@ -767,7 +803,7 @@ def geo_departements():
 
 @app.route('/search_mairies', methods=['POST'])
 def search_mairies_route():
-    global search_in_progress, search_stop_requested
+    global search_in_progress, search_stop_requested, search_resumed
 
     if search_in_progress:
         return jsonify({"error": "Une recherche est déjà en cours"}), 429
@@ -803,6 +839,7 @@ def search_mairies_route():
     if not kinds:
         return jsonify({"error": "Choisissez au moins un type de structure"}), 400
 
+    search_resumed = False
     remember_job(data, "mairie")
     thread = threading.Thread(
         target=_search_mairies_worker,
@@ -812,13 +849,32 @@ def search_mairies_route():
     return jsonify({"message": "Recherche mairies lancée", "status": "running"})
 
 
-def _search_mairies_worker(region, departement, scan_sites, max_results, all_france=False, min_population=0, kinds=None):
+def _mairie_params(region, departement, scan_sites, max_results, all_france, min_population, kinds):
+    return {
+        "region": region,
+        "departement": departement,
+        "scan_sites": bool(scan_sites),
+        "max_results": int(max_results or 0),
+        "all_france": bool(all_france),
+        "min_population": int(min_population or 0),
+        "kinds": list(kinds or ["mairie", "epci"]),
+    }
+
+
+def _search_mairies_worker(region, departement, scan_sites, max_results, all_france=False, min_population=0, kinds=None, done_codes=None, kept_results=None):
     global results_cache, search_in_progress, search_stop_requested, search_detail, search_revision
+    from scrapers.systeme.resume import clear_resume, save_resume
+
     search_in_progress = True
     search_stop_requested = False
-    results_cache = []
+    results_cache = list(kept_results or [])
+    done = {str(code) for code in (done_codes or [])}
     search_detail = "Chargement de l'annuaire des mairies…"
+    if done:
+        search_detail = f"Reprise Toute la France : {len(done)} départements déjà enregistrés."
     search_revision += 1
+    params = _mairie_params(region, departement, scan_sites, max_results, all_france, min_population, kinds)
+    completed = False
 
     def stop_flag():
         return search_stop_requested
@@ -829,6 +885,26 @@ def _search_mairies_worker(region, departement, scan_sites, max_results, all_fra
         search_revision += 1
 
     label = "Toute la France" if all_france else (departement or region or "France")
+
+    def remember(status):
+        if not all_france:
+            return
+        try:
+            save_resume({
+                "status": status,
+                "label": label,
+                "params": params,
+                "done_codes": sorted(done),
+                "results": list(results_cache),
+            })
+        except OSError as exc:
+            print(f"Reprise non enregistrée : {exc}")
+
+    def on_department(code):
+        done.add(str(code))
+        remember("running")
+        search_revision += 1
+
     try:
         _, departements = load_geo()
         regions, _ = load_geo()
@@ -844,6 +920,7 @@ def _search_mairies_worker(region, departement, scan_sites, max_results, all_fra
             match = next((r for r in regions if r["code"] == region), None)
             if match:
                 label = match["nom"]
+        remember("running")
         collect_mairies(
             region_code=region,
             departement_code=departement,
@@ -855,19 +932,62 @@ def _search_mairies_worker(region, departement, scan_sites, max_results, all_fra
             all_france=all_france,
             min_population=min_population,
             kinds=kinds,
+            skip_codes=done,
+            on_department=on_department if all_france else None,
         )
+        completed = not search_stop_requested
     except Exception as e:
         print(f"Erreur mairies: {e}")
         search_detail = f"Erreur : {e}"
+        remember("running")
     finally:
         search_in_progress = False
         search_revision += 1
-        if results_cache:
+        if completed or search_stop_requested:
+            clear_resume()
+        if results_cache and (completed or search_stop_requested):
             try:
                 add_to_history(f"Mairies: {label}", max_results or len(results_cache), results_cache.copy())
             except Exception as e:
                 print(f"Erreur historique: {e}")
         print(f"Recherche mairies terminée: {len(results_cache)} résultats")
+
+
+def resume_france_search():
+    """Relance une recherche Toute la France restée ouverte quand la fenêtre a été fermée."""
+    global results_cache, search_in_progress, search_detail, search_revision, search_resumed
+    from scrapers.systeme.resume import load_resume
+
+    job = load_resume()
+    if not job or job.get("status") != "running":
+        return False
+    params = job.get("params") or {}
+    if not params.get("all_france"):
+        return False
+    if search_in_progress:
+        return False
+    results_cache = list(job.get("results") or [])
+    done = job.get("done_codes") or []
+    search_resumed = True
+    search_in_progress = True
+    search_detail = f"Reprise Toute la France : {len(done)} départements déjà enregistrés."
+    search_revision += 1
+    threading.Thread(
+        target=_search_mairies_worker,
+        kwargs={
+            "region": params.get("region") or "ALL",
+            "departement": params.get("departement") or "",
+            "scan_sites": params.get("scan_sites", True),
+            "max_results": params.get("max_results") or 0,
+            "all_france": True,
+            "min_population": params.get("min_population") or 0,
+            "kinds": params.get("kinds") or ["mairie", "epci"],
+            "done_codes": done,
+            "kept_results": results_cache,
+        },
+        name="orascrap-resume",
+    ).start()
+    return True
 
 
 @app.route('/stop', methods=['POST'])
@@ -883,6 +1003,7 @@ def status():
         "count": len(results_cache),
         "detail": search_detail,
         "revision": search_revision,
+        "resumed": search_resumed,
     })
 
 @app.route('/results')
@@ -1297,6 +1418,17 @@ def start_scheduler():
     threading.Thread(target=_scheduler_loop, daemon=True, name="orascrap-planner").start()
 
 
+@app.route("/api/health")
+def api_health():
+    from scrapers.systeme.updater import read_version
+    return jsonify({
+        "ok": True,
+        "mode": "production",
+        "version": read_version(),
+        "bind": "127.0.0.1",
+    })
+
+
 @app.route('/api/update/status')
 def api_update_status():
     from scrapers.systeme.updater import get_state
@@ -1320,8 +1452,25 @@ def api_update_apply():
 if __name__ == '__main__':
     start_scheduler()
     try:
-        from scrapers.systeme.updater import startup_autoupdate
-        startup_autoupdate(enabled=bool(load_settings().get("auto_update", True)))
+        from scrapers.systeme.resume import load_resume
+        from scrapers.systeme.updater import startup_autoupdate, read_version
+        pending = load_resume() or {}
+        resume_first = pending.get("status") == "running" and (pending.get("params") or {}).get("all_france")
+        if resume_first:
+            print("Reprise d'une recherche Toute la France. La mise à jour attend la fin de cette recherche.", flush=True)
+        else:
+            startup_autoupdate(enabled=bool(load_settings().get("auto_update", True)))
+        version = read_version()
     except Exception as exc:
         print(f"Mise à jour automatique : {exc}")
-    app.run(debug=True, port=5001, use_reloader=False)
+        version = ""
+        resume_first = False
+    try:
+        if resume_first:
+            resume_france_search()
+    except Exception as exc:
+        print(f"Reprise impossible : {exc}")
+    from waitress import serve
+    print(f"OraScrapInAll {version} — http://127.0.0.1:5001", flush=True)
+    print("Réservé à cet ordinateur. Fermez cette fenêtre pour arrêter.", flush=True)
+    serve(app, host="127.0.0.1", port=5001, threads=8, ident="OraScrapInAll")

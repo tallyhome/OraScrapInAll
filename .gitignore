@@ -1,6 +1,7 @@
 runtime/
 data/
 archives/
+backups/
 .venv/
 __pycache__/
 *.pyc

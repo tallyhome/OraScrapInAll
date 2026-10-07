@@ -465,8 +465,19 @@ function paintUpdate(state) {
     const message = document.getElementById("updateMessage");
     const notes = document.getElementById("updateNotes");
     if (!state) return;
-    const text = state.error || state.message || "";
-    if (message) message.textContent = text;
+    if (message && (state.error || state.message || state.current)) {
+        if (state.error) {
+            message.textContent = state.error;
+        } else if (state.current) {
+            const latest = state.latest || "inconnue";
+            const verdict = state.update_available
+                ? `La version ${latest} est disponible.`
+                : (state.message || "Vous êtes à jour.");
+            message.textContent = `Installée : ${state.current}. Dernière : ${latest}. ${verdict}`;
+        } else {
+            message.textContent = state.message;
+        }
+    }
     if (notes) notes.textContent = state.notes || "";
     if (!banner) return;
     if (state.restarting) {
@@ -483,9 +494,23 @@ function paintUpdate(state) {
 }
 
 async function checkUpdate() {
-    const res = await fetch("/api/update/check", { method: "POST" });
-    const data = await res.json();
-    paintUpdate(data);
+    const message = document.getElementById("updateMessage");
+    const button = document.getElementById("checkUpdateBtn");
+    if (message) message.textContent = "Vérification sur GitHub…";
+    if (button) button.disabled = true;
+    try {
+        const res = await fetch("/api/update/check", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            paintUpdate({ error: data.error || "La vérification a échoué." });
+            return;
+        }
+        paintUpdate(data);
+    } catch (err) {
+        paintUpdate({ error: "La vérification n'a pas abouti. Relancez Lancer.bat puis réessayez." });
+    } finally {
+        if (button) button.disabled = false;
+    }
 }
 
 async function runUpdate() {
