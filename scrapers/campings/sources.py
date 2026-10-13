@@ -197,6 +197,52 @@ SOURCES = {
         "excluded_url_parts": [],
         "min_url_segments": 3,
     },
+    "barriere": {
+        "label": "Barrière",
+        "logo": "🎰",
+        "index_url": "https://www.casinosbarriere.com/",
+        "type": "generic_group",
+        "camping_link_selector": "a[href*='casinosbarriere.com/']",
+        "collect_mode": "url_slug",
+        "contact_strategy": "inline",
+        "allowed_hosts": ["casinosbarriere.com"],
+        "excluded_url_parts": [
+            "/tous-nos-jeux", "/nos-spectacles", "/restaurants", "/tournois",
+            "/programme", "/jeu-responsable", "/actualites", "/rse",
+            "/landing-page", "/en", "cadeauxbarriere", "play.google", "apps.apple",
+            "/mentions", "/cookie", "/politique",
+        ],
+        "min_url_segments": 1,
+        "max_url_segments": 1,
+    },
+    "partouche": {
+        "label": "Partouche",
+        "logo": "🎰",
+        "index_url": "https://www.partouche.com/casinos",
+        "type": "generic_group",
+        "camping_link_selector": "a[href*='/casinos/']",
+        "collect_mode": "url_slug",
+        "contact_strategy": "inline",
+        "allowed_hosts": ["partouche.com"],
+        "excluded_url_parts": ["/casinos/les-casinos", "/mentions", "/cookie", "/politique"],
+        "min_url_segments": 2,
+        "max_url_segments": 2,
+    },
+    "tranchant": {
+        "label": "Tranchant",
+        "logo": "🎰",
+        "index_url": "https://www.groupetranchant.com/activites-principales/",
+        "type": "generic_group",
+        "camping_link_selector": "a[href*='casino'], a[href*='elyseesclub']",
+        "collect_mode": "url_slug",
+        "contact_strategy": "inline",
+        "excluded_url_parts": [
+            "groupetranchant.com", "airporthotel", "goldentulip", "hoteldessources",
+            "facebook.com", "instagram.com", "linkedin.com",
+        ],
+        "min_url_segments": 0,
+        "max_url_segments": 2,
+    },
     "camping_info": {
         "label": "camping.info (annuaire)",
         "logo": "🌍",
@@ -211,6 +257,20 @@ SOURCES = {
         "type": "annuaire",
         "search_url": "https://www.eurocampings.fr/france/?q={keyword}",
     },
+    "salles_21": {
+        "label": "Côte-d'Or — châteaux et salles",
+        "logo": "🏰",
+        "type": "reception",
+        "listings": [
+            "https://www.1001salles.com/salle-de-reception-2-cote-d-or-d.html",
+        ],
+        "seeds": [
+            {"nom": "Château de Marsannay", "ville": "Marsannay-la-Côte", "url": "https://www.chateau-marsannay.com/receptions/"},
+            {"nom": "Château de Saulon", "ville": "Saulon-la-Rue", "url": "https://chateau-saulon.com/vos-evenements/"},
+            {"nom": "Château d'Arcelot", "ville": "Arceau", "url": "https://arcelot.com/evenements/mariages-et-receptions/"},
+            {"nom": "Château de Meursault", "ville": "Meursault", "url": "https://www.chateau-meursault.com/receptions/"},
+        ],
+    },
 }
 
 # Sources groupées pour l'UI
@@ -219,4 +279,6 @@ SOURCE_GROUPS = {
                          "ms_vacances", "campings_paradis", "flower", "ciela", "eden_villages",
                          "sunelia", "les_castels", "airotel", "odalys", "rcn", "vagues_oceanes", "campeole"],
     "Annuaires": ["camping_info", "eurocampings"],
+    "Casinos": ["barriere", "partouche", "tranchant"],
+    "Salles de réception": ["salles_21"],
 }

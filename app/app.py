@@ -429,11 +429,17 @@ def search_multi(sources, max_results, keyword, debug_mode):
     search_stop_requested = False
     results_cache = []
 
-    driver = init_driver(debug_mode)
+    driver = None
     seen_urls_global = set()
 
     def stop_flag():
         return search_stop_requested
+
+    def ensure_driver():
+        nonlocal driver
+        if driver is None:
+            driver = init_driver(debug_mode)
+        return driver
 
     try:
         for source_id in sources:
@@ -450,13 +456,12 @@ def search_multi(sources, max_results, keyword, debug_mode):
             source_type = source_config.get("type")
 
             if source_type == "capfun":
-                # Utiliser le scraper Capfun existant (adapté)
                 _scrape_capfun_into_cache(
-                    driver, max_results, keyword, seen_urls_global, stop_flag
+                    ensure_driver(), max_results, keyword, seen_urls_global, stop_flag
                 )
             elif source_type in ("generic_group", "annuaire"):
                 scrape_generic_group(
-                    driver=driver,
+                    driver=ensure_driver(),
                     source_id=source_id,
                     source_config=source_config,
                     max_results=max_results,
@@ -466,11 +471,24 @@ def search_multi(sources, max_results, keyword, debug_mode):
                     stop_flag=stop_flag,
                     log_fn=print,
                 )
+            elif source_type == "reception":
+                from scrapers.salles.receptions import scrape_receptions
+                scrape_receptions(
+                    source_id=source_id,
+                    source_config=source_config,
+                    max_results=max_results,
+                    keyword=keyword,
+                    results_cache=results_cache,
+                    seen_urls=seen_urls_global,
+                    stop_flag=stop_flag,
+                    log_fn=print,
+                )
             else:
                 print(f"Type de source non supporté: {source_type}")
     finally:
         try:
-            driver.quit()
+            if driver is not None:
+                driver.quit()
         except Exception:
             pass
         search_in_progress = False

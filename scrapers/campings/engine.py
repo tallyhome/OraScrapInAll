@@ -5,7 +5,7 @@ Chaque source est configurée dans sources.py.
 import time
 import re
 from selenium.webdriver.common.by import By
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 from scrapers.campings.google_strategy import scrape_group_via_google
 
 
@@ -138,13 +138,33 @@ def is_valid_camping_url(href, source_config):
         return False
 
     # Vérifier le nombre de segments d'URL pour éviter les pages trop génériques
-    path = urlparse(href).path.rstrip("/")
+    parsed = urlparse(href)
+    host = (parsed.hostname or "").lower().removeprefix("www.")
+    allowed_hosts = source_config.get("allowed_hosts")
+    if allowed_hosts and host not in allowed_hosts:
+        return False
+    path = parsed.path.rstrip("/")
     segments = [s for s in path.split("/") if s]
     min_seg = source_config.get("min_url_segments", 2)
     if len(segments) < min_seg:
         return False
+    max_seg = source_config.get("max_url_segments")
+    if max_seg is not None and len(segments) > max_seg:
+        return False
 
     return True
+
+
+def _name_from_url(href):
+    """Nom lisible à partir du dernier morceau d'adresse, quand le lien n'a pas de texte."""
+    parsed = urlparse(href)
+    host = (parsed.hostname or "").lower().removeprefix("www.")
+    segments = [unquote(part) for part in parsed.path.split("/") if part]
+    raw = segments[-1] if segments else host.split(".")[0]
+    raw = re.sub(r"(casino|elysees|club)", r" \1 ", raw, flags=re.IGNORECASE)
+    raw = raw.replace("-", " ").replace("_", " ")
+    raw = re.sub(r"\s+", " ", raw).strip()
+    return " ".join(part.capitalize() for part in raw.split())
 
 
 def collect_camping_links(driver, source_config):
@@ -183,6 +203,8 @@ def collect_camping_links(driver, source_config):
             # Récupérer le nom selon le mode
             if collect_mode == "parent_heading":
                 name = _get_name_from_parent(link)
+            elif collect_mode == "url_slug":
+                name = link_text if len(link_text) > 3 else _name_from_url(href)
             else:
                 name = link_text
 
