@@ -122,6 +122,7 @@
         
         input[type="text"],
         input[type="number"],
+        .search-section textarea,
         select {
             width: 100%;
             padding: 10px 14px;
@@ -136,6 +137,7 @@
         
         input[type="text"]:focus,
         input[type="number"]:focus,
+        .search-section textarea:focus,
         select:focus {
             outline: none;
             border-color: var(--primary);

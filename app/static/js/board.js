@@ -185,6 +185,17 @@ function scraperPayload() {
             }
         };
     }
+    if (mode === "ce_annuaire" || mode === "ce_web") {
+        return {
+            mode: "ce_annuaire",
+            payload: {
+                places: document.getElementById("ceWebPlaces").value,
+                companies: document.getElementById("ceWebCompanies").value,
+                max_results: parseInt(document.getElementById("ceWebMaxResults").value, 10) || 200,
+                include_social: document.getElementById("ceIncludeSocial").checked
+            }
+        };
+    }
     if (mode === "universal") {
         let query = document.getElementById("universalQuery").value.trim();
         ["universalVille", "universalRegion", "universalPays"].forEach(id => {
@@ -417,8 +428,31 @@ async function refreshSettings() {
     document.getElementById("settingChrome").checked = !!settings.chrome_visible;
     const auto = document.getElementById("autoUpdate");
     if (auto) auto.checked = settings.auto_update !== false;
+    paintSearchKeys(settings);
     paintUser(settings.display_name);
     checkUpdate();
+}
+
+function paintSearchKeys(settings) {
+    const state = document.getElementById("searchKeyState");
+    if (state) {
+        const parts = [
+            settings.brave_api_key_set ? "Brave : clé enregistrée" : "Brave : aucune clé",
+            settings.google_api_key_set ? "Google : clé et identifiant enregistrés" : "Google : clé ou identifiant manquant"
+        ];
+        state.textContent = parts.join(" · ");
+    }
+    if (typeof syncCeEngines === "function") syncCeEngines(settings);
+}
+
+async function clearSearchKeys() {
+    if (!confirm("Effacer les clés de moteurs de recherche enregistrées sur ce PC ?")) return;
+    const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clear_search_keys: true })
+    });
+    paintSearchKeys(await res.json());
 }
 
 async function saveSettings(event) {
@@ -426,7 +460,10 @@ async function saveSettings(event) {
     const body = {
         display_name: document.getElementById("settingName").value,
         chrome_visible: document.getElementById("settingChrome").checked,
-        auto_update: document.getElementById("autoUpdate").checked
+        auto_update: document.getElementById("autoUpdate").checked,
+        brave_api_key: document.getElementById("settingBraveKey").value,
+        google_api_key: document.getElementById("settingGoogleKey").value,
+        google_cx: document.getElementById("settingGoogleCx").value
     };
     const res = await fetch("/api/settings", {
         method: "POST",
@@ -434,9 +471,11 @@ async function saveSettings(event) {
         body: JSON.stringify(body)
     });
     const data = await res.json();
+    ["settingBraveKey", "settingGoogleKey", "settingGoogleCx"].forEach(id => { document.getElementById(id).value = ""; });
+    paintSearchKeys(data);
     localStorage.setItem("orascrap-name", data.display_name || "");
     paintUser(data.display_name);
-    ["debugMode", "universalDebugMode", "smartDebugMode"].forEach(id => {
+    ["debugMode", "universalDebugMode", "smartDebugMode", "ceWebDebugMode"].forEach(id => {
         const box = document.getElementById(id);
         if (box) box.checked = !!data.chrome_visible;
     });

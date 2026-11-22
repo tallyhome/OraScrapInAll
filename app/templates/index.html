@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=2">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}?v=4">
     <script>
@@ -123,6 +123,8 @@
                         <option value="camping">Campings</option>
                         <option value="universal">Universel</option>
                         <option value="smart">Smart Search</option>
+                        <option value="ce_annuaire">CE / CSE (annuaire)</option>
+                        <option value="ce_web">CE sur Internet</option>
                     </select>
                 </div>
                 <div><label>Projet</label><select id="schedProject"></select></div>
@@ -193,6 +195,13 @@
                 <div class="wide"><label>Nom affiché</label><input id="settingName" placeholder="Julien"></div>
                 <div class="wide"><label class="checkbox-group"><input id="settingChrome" type="checkbox"><span>Voir Chrome par défaut</span></label></div>
                 <div class="full"><label class="checkbox-group"><input id="autoUpdate" type="checkbox" checked><span>Mise à jour automatique au lancement</span></label></div>
+                <div class="full"><h3 style="margin:6px 0 0">Recherche des CE : clés de moteurs (facultatif)</h3>
+                    <p class="empty-note" style="margin:4px 0 0">Les API officielles évitent les captchas et respectent « site:facebook.com ». Brave Search et Google Programmable Search ont chacun une offre gratuite limitée. Les clés restent sur ce PC et ne sont jamais renvoyées à la page. Laisser vide ne change rien.</p>
+                </div>
+                <div class="wide"><label>Clé Brave Search API</label><input id="settingBraveKey" type="password" autocomplete="off" placeholder="BSA…"></div>
+                <div class="wide"><label>Clé Google Programmable Search</label><input id="settingGoogleKey" type="password" autocomplete="off" placeholder="AIza…"></div>
+                <div class="wide"><label>Identifiant du moteur Google (cx)</label><input id="settingGoogleCx" type="text" autocomplete="off" placeholder="0123456789abcdef"></div>
+                <div class="wide"><p id="searchKeyState" class="empty-note"></p><button type="button" class="btn-quiet" onclick="clearSearchKeys()">Effacer les clés</button></div>
                 <div class="full"><button class="btn-primary" type="submit">Enregistrer</button></div>
             </form>
             <div class="card" id="updateCard" style="margin-top:14px">
@@ -242,6 +251,7 @@
                 <button class="mode-tab" onclick="switchMode('universal')">🌐 Universel</button>
                 <button class="mode-tab" onclick="switchMode('smart')">🎯 Smart Search</button>
                 <button class="mode-tab" onclick="switchMode('mairie')">🏛️ Mairies</button>
+                <button class="mode-tab" onclick="switchMode('ce_annuaire')">🏢 CE / CSE</button>
             </div>
 
             <!-- Formulaire Camping -->
@@ -354,6 +364,37 @@
                         ⏹ Arrêter
                     </button>
                 </div>
+            </div>
+
+            <!-- Formulaire CE / CSE : annuaire officiel -->
+            <div id="ceWebForm" class="mode-form" style="display: none;">
+                <div class="form-group">
+                    <div class="input-group">
+                        <label for="ceWebPlaces">Lieu (ville, département, région ou France)</label>
+                        <textarea id="ceWebPlaces" rows="3" placeholder="Dijon&#10;Côte-d'Or&#10;Bourgogne"></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="ceWebCompanies">Entreprise (facultatif)</label>
+                        <textarea id="ceWebCompanies" rows="3" placeholder="Renault&#10;Schneider"></textarea>
+                    </div>
+                    <div class="input-group" style="max-width: 160px; min-width: 120px;">
+                        <label for="ceWebMaxResults">Nombre max</label>
+                        <input type="number" id="ceWebMaxResults" value="200" min="1" max="2000">
+                    </div>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="ceIncludeSocial" checked>
+                        <span>Inclure les caisses d'activité sociale (CASI)</span>
+                    </label>
+                    <button id="ceWebSearchBtn" onclick="startCeAnnuaireSearch()">
+                        🏢 Chercher dans l'annuaire
+                    </button>
+                    <button id="ceWebStopBtn" class="btn-stop" onclick="stopSearch()" style="display: none;">
+                        ⏹ Arrêter
+                    </button>
+                </div>
+                <p style="margin-top: 12px; color: var(--gray-500); font-size: 0.85rem; max-width: 820px;">
+                    Source : l'annuaire des entreprises de l'État (<a href="https://annuaire-entreprises.data.gouv.fr/" target="_blank" rel="noopener noreferrer">annuaire-entreprises.data.gouv.fr</a>), sans clé et sans Chrome. Il liste les comités d'entreprise, CSE et comités d'établissement réellement immatriculés, avec leur adresse et leur SIREN. Cette base ne contient pas d'e-mail. Pappers et Kompass republient la même immatriculation, sans e-mail public non plus. LinkedIn ne montre ces pages qu'après connexion : elles ne sont pas lues.
+                </p>
             </div>
 
             <!-- Formulaire Mairies -->
@@ -604,11 +645,13 @@
                 camping: 'campingForm',
                 universal: 'universalForm',
                 smart: 'smartForm',
-                mairie: 'mairieForm'
+                mairie: 'mairieForm',
+                ce_web: 'ceWebForm',
+                ce_annuaire: 'ceWebForm'
             };
             document.getElementById(forms[mode] || 'campingForm').style.display = 'block';
             const tabs = document.querySelectorAll('.mode-tab');
-            const index = { camping: 0, universal: 1, smart: 2, mairie: 3 }[mode] || 0;
+            const index = { camping: 0, universal: 1, smart: 2, mairie: 3, ce_annuaire: 4, ce_web: 4 }[mode] || 0;
             if (tabs[index]) tabs[index].classList.add('active');
             document.querySelector('.sources-section').style.display = mode === 'camping' ? 'block' : 'none';
         }
@@ -868,6 +911,88 @@
             }
         }
 
+        function syncCeEngines(settings) {
+            const apply = (id, textId, ready, label) => {
+                const box = document.getElementById(id);
+                const text = document.getElementById(textId);
+                if (!box) return;
+                box.disabled = !ready;
+                if (ready && !box.dataset.touched) box.checked = true;
+                if (!ready) box.checked = false;
+                if (text) text.textContent = ready ? label : `${label}, clé dans Paramètres`;
+            };
+            apply('ceEngBrave', 'ceEngBraveText', !!(settings && settings.brave_api_key_set), 'Brave (API)');
+            apply('ceEngGoogleApi', 'ceEngGoogleApiText', !!(settings && settings.google_api_key_set), 'Google (API)');
+        }
+        ['ceEngBrave', 'ceEngGoogleApi'].forEach(id => {
+            const box = document.getElementById(id);
+            if (box) box.addEventListener('change', () => { box.dataset.touched = '1'; });
+        });
+        fetch('/api/settings').then(r => r.json()).then(syncCeEngines).catch(() => {});
+
+        function startCeAnnuaireSearch() {
+            const places = document.getElementById('ceWebPlaces').value;
+            const companies = document.getElementById('ceWebCompanies').value;
+            if (!places.trim() && !companies.trim()) {
+                alert('Indiquez une ville, un département, une région, France, ou une entreprise');
+                return;
+            }
+            const btn = document.getElementById('ceWebSearchBtn');
+            const status = document.getElementById('status');
+
+            activeMode = 'ce_annuaire';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Recherche...';
+            document.getElementById('ceWebStopBtn').style.display = 'inline-block';
+            status.classList.add('active', 'loading');
+            document.getElementById('statusText').textContent = 'Annuaire des entreprises…';
+
+            lastKnownCount = -1;
+            lastRevision = -1;
+            currentHistoryId = null;
+            currentLoadedHistoryId = null;
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsCount').style.display = 'none';
+
+            fetch('/search_ce_annuaire', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    places,
+                    companies,
+                    max_results: parseInt(document.getElementById('ceWebMaxResults').value, 10) || 200,
+                    include_social: document.getElementById('ceIncludeSocial').checked,
+                    project_id: currentProjectId()
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    resetCeWebButton(false);
+                    return;
+                }
+                statusInterval = setInterval(checkStatus, 1500);
+            })
+            .catch(err => {
+                alert('Erreur: ' + err.message);
+                resetCeWebButton(false);
+            });
+        }
+
+        function resetCeWebButton(keepStatus) {
+            const btn = document.getElementById('ceWebSearchBtn');
+            btn.disabled = false;
+            btn.innerHTML = '🏢 Chercher dans l\'annuaire';
+            document.getElementById('ceWebStopBtn').style.display = 'none';
+            document.getElementById('status').classList.remove('loading');
+            if (!keepStatus) {
+                document.getElementById('status').classList.remove('active');
+                document.getElementById('statusText').textContent = 'Prêt à rechercher...';
+            }
+        }
+
         function startSearch() {
             const keyword = document.getElementById('keyword').value;
             const maxResults = parseInt(document.getElementById('maxResults').value) || 50;
@@ -935,7 +1060,7 @@
                     statusTextMsg = data.detail
                         ? data.detail
                         : `🔍 Recherche en cours... ${data.count} résultat${data.count > 1 ? 's' : ''} trouvé${data.count > 1 ? 's' : ''}`;
-                } else if (activeMode === 'mairie' && data.detail) {
+                } else if ((activeMode === 'mairie' || activeMode === 'ce_web' || activeMode === 'ce_annuaire') && data.detail) {
                     statusTextMsg = data.detail;
                 } else {
                     statusTextMsg = `✅ Recherche terminée ! ${data.count} résultat${data.count > 1 ? 's' : ''} trouvé${data.count > 1 ? 's' : ''}`;
@@ -951,6 +1076,7 @@
                 if (!data.in_progress) {
                     clearInterval(statusInterval);
                     if (activeMode === 'mairie') resetMairieButton(true);
+                    else if (activeMode === 'ce_web' || activeMode === 'ce_annuaire') resetCeWebButton(true);
                     else resetButton();
                     // Forcer un dernier chargement complet
                     loadResults();
@@ -1177,12 +1303,26 @@
             if (data[0].source === 'smart_search' || data[0].source === 'universal') {
                 return `${n} résultat${plural}`;
             }
+            if (data[0].source === 'ce_web') {
+                const mails = data.filter(item => item.email).length;
+                return `${n} CE · ${mails} e-mail${mails > 1 ? 's' : ''}`;
+            }
+            if (data[0].source === 'ce_annuaire') {
+                const ce = data.filter(item => item.groupe === "Comité d'entreprise").length;
+                return `${ce} CE / CSE · ${n - ce} activité sociale`;
+            }
             return `${n} camping${plural}`;
         }
 
         function groupKey(item) {
             if (item.source === 'mairie') {
                 return `${item.region || 'Région inconnue'} — ${item.departement || 'Département inconnu'}`;
+            }
+            if (item.source === 'ce_web') {
+                return item.reseau || 'Autres';
+            }
+            if (item.source === 'ce_annuaire') {
+                return `${item.region || 'France'} — ${item.departement || ''}`;
             }
             return item.region || 'Autres';
         }
@@ -1201,6 +1341,8 @@
             }
 
             const isMairie = data[0].source === 'mairie';
+            const isCeWeb = data[0].source === 'ce_web';
+            const isCeAnnuaire = data[0].source === 'ce_annuaire';
             const grouped = {};
             data.forEach(item => {
                 const key = groupKey(item);
@@ -1211,7 +1353,7 @@
             let html = '';
             Object.keys(grouped).sort().forEach(region => {
                 const camps = grouped[region];
-                const unit = isMairie ? 'fiche' : 'résultat';
+                const unit = (isMairie || isCeAnnuaire) ? 'fiche' : 'résultat';
                 html += `
                     <div class="region-group">
                         <h3 class="region-title" onclick="this.parentElement.classList.toggle('collapsed')">
@@ -1219,11 +1361,15 @@
                             <span class="region-count">${camps.length} ${unit}${camps.length > 1 ? 's' : ''}</span>
                         </h3>
                         <div class="region-table-wrap">
-                        <table class="${isMairie ? 'contacts' : ''}">
+                        <table class="${(isMairie || isCeAnnuaire) ? 'contacts' : ''}">
                             <thead>
                                 <tr>
                 `;
-                if (isMairie) {
+                if (isCeAnnuaire) {
+                    html += `<th>Type</th><th>Nom</th><th>Ville</th><th class="col-cp">Code postal</th><th>Adresse</th><th>SIREN</th><th>Fiche</th>`;
+                } else if (isCeWeb) {
+                    html += `<th>Nom</th><th>Entreprise</th><th>Zone</th><th>E-mail</th><th>Téléphone</th><th>Trouvé via</th><th>Lien</th>`;
+                } else if (isMairie) {
                     html += `<th>Type</th><th>Nom</th><th class="col-pop">Habitants</th><th class="col-cp">Code postal</th><th>E-mail</th><th>E-mail socioculturel</th><th class="col-phone">Téléphone</th><th>Site</th>`;
                 } else {
                     html += `<th>Nom</th><th>Groupe</th><th>Région</th><th>Email</th><th>Téléphone</th><th>Site</th>`;
@@ -1234,7 +1380,32 @@
                     if (item.url) links.push(`<a href="${escapeHtml(item.url)}" target="_blank">Site</a>`);
                     if (item.recherche_url) links.push(`<a href="${escapeHtml(item.recherche_url)}" target="_blank">Chercher</a>`);
                     const site = links.length ? links.join(' · ') : '—';
-                    if (isMairie) {
+                    if (isCeAnnuaire) {
+                        html += `
+                            <tr>
+                                <td>${escapeHtml(item.groupe || '—')}</td>
+                                <td><strong>${escapeHtml(item.nom)}</strong></td>
+                                <td>${escapeHtml(item.commune || '—')}</td>
+                                <td class="col-cp">${escapeHtml(item.code_postal || '—')}</td>
+                                <td>${escapeHtml(item.adresse || '—')}</td>
+                                <td>${escapeHtml(item.siren || '—')}</td>
+                                <td>${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Annuaire</a>` : '—'}</td>
+                            </tr>
+                        `;
+                    } else if (isCeWeb) {
+                        const note = item.remarque ? `<div style="color:var(--gray-500);font-size:0.75rem;">${escapeHtml(item.remarque)}</div>` : '';
+                        html += `
+                            <tr>
+                                <td><strong>${escapeHtml(item.nom)}</strong>${note}</td>
+                                <td>${escapeHtml(item.entreprise || '—')}</td>
+                                <td><span class="region-pill">${escapeHtml(item.region || '—')}</span></td>
+                                <td class="${item.email ? 'email' : 'no-email'}">${item.email ? escapeHtml(item.email) : '—'}</td>
+                                <td class="${item.phone ? 'email' : 'no-email'}">${item.phone ? escapeHtml(item.phone) : '—'}</td>
+                                <td>${escapeHtml(item.moteur || '—')}</td>
+                                <td>${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.reseau || 'Ouvrir')}</a>` : '—'}</td>
+                            </tr>
+                        `;
+                    } else if (isMairie) {
                         const socio = item.email_socioculturel
                             ? `${escapeHtml(item.email_socioculturel)}${item.service_socioculturel ? `<div style="color:var(--gray-500);font-size:0.75rem;">${escapeHtml(item.service_socioculturel)}</div>` : ''}`
                             : '—';
@@ -1350,7 +1521,7 @@
             });
         }
     </script>
-    <script src="{{ url_for('static', filename='js/board.js') }}?v=4"></script>
+    <script src="{{ url_for('static', filename='js/board.js') }}?v=6"></script>
     </div>
 </div>
 </body>

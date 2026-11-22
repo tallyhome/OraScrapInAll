@@ -28,7 +28,8 @@ from scrapers.systeme.workspace import (
     delete_project, delete_proxy, delete_schedule, due_schedule,
     load_activity, load_exports, load_projects, load_schedules, load_settings,
     log_activity, mark_schedule_ran, next_schedule, public_proxies,
-    record_export, save_settings, test_proxy, update_schedule,
+    public_settings, record_export, save_settings, search_api_keys,
+    test_proxy, update_schedule,
 )
 
 app = Flask(__name__)
@@ -790,6 +791,193 @@ def _search_smart_worker(query, max_results, debug_mode):
         print(f"Recherche intelligente terminée: {len(results_cache)} résultats")
 
 
+def _split_list(value, limit=40):
+    """Accepte une liste ou un texte séparé par des retours à la ligne / points-virgules."""
+    if isinstance(value, str):
+        value = re.split(r"[\n;]+", value)
+    rows = []
+    for item in value or []:
+        text = str(item or "").strip()
+        if text and text not in rows:
+            rows.append(text[:120])
+    return rows[:limit]
+
+
+def _ce_web_params(data):
+    from scrapers.recherche.ce_web import ENGINE_ORDER, NETWORK_ORDER
+    networks = [n for n in (data.get("networks") or ["web", "facebook", "instagram"]) if n in NETWORK_ORDER]
+    engines = [e for e in (data.get("engines") or list(ENGINE_ORDER)) if e in ENGINE_ORDER]
+    try:
+        max_results = int(data.get("max_results") or 30)
+        if max_results <= 0:
+            max_results = 30
+    except (TypeError, ValueError):
+        max_results = 30
+    return {
+        "places": _split_list(data.get("places")),
+        "companies": _split_list(data.get("companies"), limit=60),
+        "networks": networks or ["web"],
+        "engines": engines or list(ENGINE_ORDER),
+        "max_results": min(max_results, 500),
+        "only_email": bool(data.get("only_email")),
+        "debug_mode": bool(data.get("debug_mode")),
+    }
+
+
+def _ce_annuaire_params(data):
+    try:
+        max_results = int(data.get("max_results") or 200)
+        if max_results <= 0:
+            max_results = 200
+    except (TypeError, ValueError):
+        max_results = 200
+    return {
+        "places": _split_list(data.get("places")),
+        "companies": _split_list(data.get("companies"), limit=60),
+        "max_results": min(max_results, 2000),
+        "include_social": bool(data.get("include_social", True)),
+    }
+
+
+@app.route('/search_ce_annuaire', methods=['POST'])
+def search_ce_annuaire_route():
+    if search_in_progress:
+        return jsonify({"error": "Une recherche est déjà en cours"}), 429
+    data = request.json or {}
+    params = _ce_annuaire_params(data)
+    if not params["places"] and not params["companies"]:
+        return jsonify({"error": "Indiquez une ville, un département, une région, France, ou une entreprise"}), 400
+    remember_job(data, "ce_annuaire")
+    threading.Thread(target=_search_ce_annuaire_worker, args=(params,)).start()
+    return jsonify({"message": "Recherche CE lancée", "status": "running"})
+
+
+def _search_ce_annuaire_worker(params):
+    """CE et CSE lus dans l'annuaire officiel, sans clé et sans navigateur."""
+    global results_cache, search_in_progress, search_stop_requested, search_detail, search_revision
+    from scrapers.annuaire.ce_annuaire import collect_ce
+
+    search_in_progress = True
+    search_stop_requested = False
+    results_cache = []
+    search_detail = "Annuaire des entreprises…"
+    search_revision += 1
+
+    def stop_flag():
+        return search_stop_requested
+
+    def on_detail(message):
+        global search_detail, search_revision
+        search_detail = message
+        search_revision += 1
+
+    label = " ; ".join(params["places"][:3]) or " ; ".join(params["companies"][:2]) or "CE"
+    try:
+        collect_ce(
+            places=params["places"],
+            companies=params["companies"],
+            results_cache=results_cache,
+            stop_flag=stop_flag,
+            max_results=params["max_results"],
+            include_social=params["include_social"],
+            on_detail=on_detail,
+        )
+    except Exception as e:
+        print(f"Erreur CE annuaire: {e}")
+        search_detail = f"Erreur : {e}"
+        log_activity("ERROR", str(e)[:180])
+    finally:
+        search_in_progress = False
+        search_revision += 1
+        if results_cache:
+            try:
+                add_to_history(f"CE annuaire: {label}", params["max_results"], results_cache.copy())
+            except Exception as e:
+                print(f"Erreur historique: {e}")
+        print(f"Recherche CE annuaire terminée: {len(results_cache)} résultats")
+
+
+@app.route('/search_ce_web', methods=['POST'])
+def search_ce_web_route():
+    if search_in_progress:
+        return jsonify({"error": "Une recherche est déjà en cours"}), 429
+    data = request.json or {}
+    params = _ce_web_params(data)
+    if not params["places"] and not params["companies"]:
+        return jsonify({"error": "Indiquez au moins un lieu ou une entreprise"}), 400
+    from scrapers.recherche.ce_web import engine_ready
+    keys = search_api_keys()
+    if not any(engine_ready(engine, keys) for engine in params["engines"]):
+        return jsonify({"error": "Les moteurs cochés demandent une clé : ajoutez-la dans Paramètres ou cochez Google, Bing ou DuckDuckGo."}), 400
+    remember_job(data, "ce_web")
+    threading.Thread(target=_search_ce_web_worker, args=(params,)).start()
+    return jsonify({"message": "Recherche CE lancée", "status": "running"})
+
+
+def _search_ce_web_worker(params):
+    """Worker : CE / CSE cherchés sur Google, Bing, DuckDuckGo, Facebook, Instagram, LinkedIn."""
+    global results_cache, search_in_progress, search_stop_requested, search_detail, search_revision
+    from scrapers.recherche.ce_web import API_ENGINES, engine_ready, scrape_ce_web
+
+    search_in_progress = True
+    search_stop_requested = False
+    results_cache = []
+    search_revision += 1
+    driver = None
+    api_keys = search_api_keys()
+    needs_chrome = any(
+        engine not in API_ENGINES and engine_ready(engine, api_keys) for engine in params["engines"]
+    )
+    search_detail = "Ouverture de Chrome…" if needs_chrome else "Recherche en cours…"
+
+    def stop_flag():
+        return search_stop_requested
+
+    def on_detail(message):
+        global search_detail, search_revision
+        search_detail = message
+        search_revision += 1
+
+    label = " ; ".join(params["places"][:3]) or " ; ".join(params["companies"][:2]) or "CE"
+    try:
+        if needs_chrome:
+            driver = init_driver(params["debug_mode"])
+        scrape_ce_web(
+            driver=driver,
+            places=params["places"],
+            companies=params["companies"],
+            networks=params["networks"],
+            engines=params["engines"],
+            max_results=params["max_results"],
+            results_cache=results_cache,
+            seen_urls=set(),
+            stop_flag=stop_flag,
+            on_detail=on_detail,
+            log_fn=print,
+            only_email=params["only_email"],
+            interactive=params["debug_mode"],
+            api_keys=api_keys,
+        )
+    except Exception as e:
+        print(f"Erreur CE web: {e}")
+        search_detail = f"Erreur : {e}"
+        log_activity("ERROR", str(e)[:180])
+    finally:
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+        search_in_progress = False
+        search_revision += 1
+        if results_cache:
+            try:
+                add_to_history(f"CE web: {label}", params["max_results"], results_cache.copy())
+            except Exception as e:
+                print(f"Erreur historique: {e}")
+        print(f"Recherche CE web terminée: {len(results_cache)} résultats")
+
+
 @app.route('/geo/regions')
 def geo_regions():
     try:
@@ -1095,6 +1283,37 @@ def export():
         if df.empty:
             return "Pas d'emails", 404
 
+    is_ce_annuaire = bool(data) and data[0].get("source") == "ce_annuaire"
+    if is_ce_annuaire and mode != 'emails_only':
+        preferred = ["groupe", "nom", "commune", "code_postal", "departement", "region", "adresse", "siren", "url"]
+        df = df[[c for c in preferred if c in df.columns]].rename(columns={
+            "groupe": "Type",
+            "nom": "Nom",
+            "commune": "Ville",
+            "code_postal": "Code postal",
+            "departement": "Département",
+            "region": "Région",
+            "adresse": "Adresse",
+            "siren": "SIREN",
+            "url": "Fiche",
+        })
+
+    is_ce_web = bool(data) and data[0].get("source") == "ce_web"
+    if is_ce_web and mode != 'emails_only':
+        preferred = ["nom", "entreprise", "reseau", "email", "phone", "url", "region", "moteur", "extrait", "remarque"]
+        df = df[[c for c in preferred if c in df.columns]].rename(columns={
+            "nom": "Nom",
+            "entreprise": "Entreprise",
+            "reseau": "Réseau",
+            "email": "E-mail",
+            "phone": "Téléphone",
+            "url": "Lien",
+            "region": "Zone",
+            "moteur": "Trouvé via",
+            "extrait": "Extrait",
+            "remarque": "Remarque",
+        })
+
     if is_mairie:
         df = df.rename(columns={
             "region": "Région",
@@ -1116,7 +1335,7 @@ def export():
     # Générer le fichier en mémoire
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     buffer = BytesIO()
-    prefix = "mairies" if is_mairie else "campings"
+    prefix = "mairies" if is_mairie else ("ce" if (is_ce_web or is_ce_annuaire) else "campings")
     
     if fmt == 'csv':
         df.to_csv(buffer, index=False, encoding='utf-8-sig', sep=';')
@@ -1360,8 +1579,8 @@ def api_proxy_test(proxy_id):
 @app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
     if request.method == 'POST':
-        return jsonify(save_settings(request.json or {}))
-    return jsonify(load_settings())
+        return jsonify(public_settings(save_settings(request.json or {})))
+    return jsonify(public_settings(load_settings()))
 
 
 _schedule_lock = threading.Lock()
@@ -1396,6 +1615,12 @@ def _launch_schedule(job, mark=True):
         elif mode == "universal":
             target = _search_universal_worker
             args = (payload.get("query") or "", int(payload.get("max_results") or 20), bool(payload.get("debug_mode")))
+        elif mode == "ce_annuaire":
+            target = _search_ce_annuaire_worker
+            args = (_ce_annuaire_params(payload),)
+        elif mode == "ce_web":
+            target = _search_ce_web_worker
+            args = (_ce_web_params(payload),)
         elif mode == "smart":
             target = _search_smart_worker
             args = (payload.get("query") or "", int(payload.get("max_results") or 15), bool(payload.get("debug_mode")))
@@ -1467,7 +1692,21 @@ def api_update_apply():
     return jsonify(apply_update())
 
 
+def _attach_log():
+    """Sans console (pythonw), print irait dans le vide et planterait."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    folder = os.path.join(_project_root(), "data")
+    os.makedirs(folder, exist_ok=True)
+    handle = open(os.path.join(folder, "orascrap.log"), "a", encoding="utf-8", buffering=1)
+    if sys.stdout is None:
+        sys.stdout = handle
+    if sys.stderr is None:
+        sys.stderr = handle
+
+
 if __name__ == '__main__':
+    _attach_log()
     start_scheduler()
     try:
         from scrapers.systeme.resume import load_resume

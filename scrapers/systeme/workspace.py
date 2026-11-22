@@ -73,6 +73,29 @@ def default_settings():
         "proxy_mode": "off",
         "active_proxy_id": None,
         "auto_update": True,
+        "brave_api_key": "",
+        "google_api_key": "",
+        "google_cx": "",
+    }
+
+
+SEARCH_KEYS = ("brave_api_key", "google_api_key", "google_cx")
+
+
+def public_settings(settings):
+    """Réglages renvoyés à la page : les clés de recherche ne repartent jamais."""
+    shown = {key: value for key, value in settings.items() if key not in SEARCH_KEYS}
+    shown["brave_api_key_set"] = bool(settings.get("brave_api_key"))
+    shown["google_api_key_set"] = bool(settings.get("google_api_key") and settings.get("google_cx"))
+    return shown
+
+
+def search_api_keys():
+    settings = load_settings()
+    return {
+        "brave": str(settings.get("brave_api_key") or ""),
+        "google": str(settings.get("google_api_key") or ""),
+        "google_cx": str(settings.get("google_cx") or ""),
     }
 
 
@@ -100,6 +123,14 @@ def save_settings(incoming):
         settings["active_proxy_id"] = int(value) if value else None
     if "auto_update" in incoming:
         settings["auto_update"] = bool(incoming.get("auto_update"))
+    if incoming.get("clear_search_keys"):
+        for key in SEARCH_KEYS:
+            settings[key] = ""
+    else:
+        for key in SEARCH_KEYS:
+            value = str(incoming.get(key) or "").strip()
+            if value:
+                settings[key] = value[:200]
     _write("settings.json", settings)
     return settings
 
@@ -330,7 +361,7 @@ def add_schedule(payload):
     if not name:
         raise ValueError("La planification a besoin d'un nom")
     mode = payload.get("mode")
-    if mode not in ("camping", "universal", "smart", "mairie"):
+    if mode not in ("camping", "universal", "smart", "mairie", "ce_web", "ce_annuaire"):
         raise ValueError("Type de recherche inconnu")
     job = {
         "id": _now_id(),
