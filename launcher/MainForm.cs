@@ -13,13 +13,14 @@ namespace OraScrap
     sealed class MainForm : Form
     {
         const string HealthUrl = "http://127.0.0.1:5001/api/health";
-        const string HomeUrl = "http://127.0.0.1:5001/";
+        const string HomeUrl = "http://127.0.0.1:5001/?v=atlas";
 
         readonly WebView2 web = new WebView2();
         readonly NotifyIcon tray;
         readonly Label splash;
         Process server;
         bool quitting;
+        bool askingClose;
 
         public MainForm()
         {
@@ -28,14 +29,14 @@ namespace OraScrap
             Height = 840;
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(900, 600);
-            BackColor = Color.FromArgb(24, 24, 28);
-            Icon = SystemIcons.Application;
+            BackColor = Color.FromArgb(244, 246, 245);
+            Icon = LoadIcon();
 
             splash = new Label
             {
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
-                ForeColor = Color.WhiteSmoke,
+                ForeColor = Color.FromArgb(16, 32, 24),
                 Font = new Font("Segoe UI", 14f),
                 Text = "Démarrage d'OraScrapInAll…"
             };
@@ -47,14 +48,14 @@ namespace OraScrap
 
             tray = new NotifyIcon
             {
-                Icon = SystemIcons.Application,
+                Icon = Icon,
                 Text = "OraScrapInAll",
                 Visible = true
             };
             tray.DoubleClick += (s, e) => ShowFromTray();
             var menu = new ContextMenuStrip();
             menu.Items.Add("Afficher", null, (s, e) => ShowFromTray());
-            menu.Items.Add("Quitter", null, (s, e) => Quit());
+            menu.Items.Add("Quitter complètement", null, (s, e) => Quit());
             tray.ContextMenuStrip = menu;
 
             FormClosing += MainForm_FormClosing;
@@ -105,6 +106,16 @@ namespace OraScrap
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             web.CoreWebView2.Settings.AreDevToolsEnabled = false;
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            web.CoreWebView2.WebMessageReceived += (s, e) =>
+            {
+                string choice = "";
+                try { choice = e.TryGetWebMessageAsString(); }
+                catch { choice = ""; }
+                if (InvokeRequired)
+                    BeginInvoke(new Action(() => OnExitMessage(choice)));
+                else
+                    OnExitMessage(choice);
+            };
             web.CoreWebView2.NewWindowRequested += (s, e) =>
             {
                 e.Handled = true;
@@ -211,14 +222,84 @@ namespace OraScrap
         {
             if (quitting)
                 return;
-            if (e.CloseReason == CloseReason.UserClosing)
+            if (e.CloseReason != CloseReason.UserClosing)
             {
-                e.Cancel = true;
-                Hide();
-                tray.ShowBalloonTip(2500, "OraScrapInAll", "L'application reste active près de l'horloge.", ToolTipIcon.Info);
+                Quit();
                 return;
             }
-            Quit();
+            e.Cancel = true;
+            if (askingClose)
+                return;
+            askingClose = true;
+            BeginInvoke(new Action(async () =>
+            {
+                bool handedToPage = false;
+                try
+                {
+                    if (web.CoreWebView2 != null && web.Visible)
+                    {
+                        string raw = await web.CoreWebView2.ExecuteScriptAsync(
+                            "(function(){if(typeof orascrapAskExit==='function'){orascrapAskExit();return 'shown';}return 'missing';})()");
+                        handedToPage = raw != null && raw.IndexOf("shown", StringComparison.Ordinal) >= 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Program.Log("fermeture : " + ex.Message);
+                }
+                if (!handedToPage)
+                {
+                    try { AskNative(); }
+                    finally { askingClose = false; }
+                }
+            }));
+        }
+
+        void OnExitMessage(string choice)
+        {
+            choice = (choice ?? "").Trim().Trim('"');
+            if (choice != "quit" && choice != "tray" && choice != "cancel")
+                return;
+            askingClose = false;
+            if (choice == "quit")
+                Quit();
+            else if (choice == "tray")
+                HideToTray();
+        }
+
+        void AskNative()
+        {
+            using (var dialog = new ExitChoiceForm())
+            {
+                dialog.ShowDialog(this);
+                if (dialog.Choice == "quit")
+                    Quit();
+                else if (dialog.Choice == "tray")
+                    HideToTray();
+            }
+        }
+
+        void HideToTray()
+        {
+            Hide();
+            tray.Visible = true;
+            tray.ShowBalloonTip(
+                2800,
+                "OraScrapInAll",
+                "Toujours actif, près de l'horloge. Double-cliquez l'icône pour revenir.",
+                ToolTipIcon.Info);
+        }
+
+        static Icon LoadIcon()
+        {
+            try
+            {
+                Icon icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                if (icon != null)
+                    return icon;
+            }
+            catch { }
+            return SystemIcons.Application;
         }
 
         void Quit()
@@ -336,6 +417,73 @@ namespace OraScrap
                 web.Dispose();
             }
             base.Dispose(disposing);
+        }
+    }
+
+    sealed class ExitChoiceForm : Form
+    {
+        public string Choice { get; private set; }
+
+        public ExitChoiceForm()
+        {
+            Choice = "cancel";
+            Text = "OraScrapInAll";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            StartPosition = FormStartPosition.CenterParent;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            ClientSize = new Size(480, 196);
+            Font = new Font("Segoe UI", 10f);
+            BackColor = Color.White;
+
+            var title = new Label
+            {
+                Text = "Fermer OraScrapInAll",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(16, 32, 24),
+                AutoSize = false,
+                Bounds = new Rectangle(24, 18, 432, 30)
+            };
+            var text = new Label
+            {
+                Text = "L'application peut rester active près de l'horloge. Un double-clic sur son icône la rouvre. Vous pouvez aussi la quitter complètement.",
+                ForeColor = Color.FromArgb(70, 84, 76),
+                AutoSize = false,
+                Bounds = new Rectangle(24, 54, 432, 58)
+            };
+
+            var cancel = Make("Annuler", 24, 140, 110, "cancel", false);
+            var tray = Make("Près de l'horloge", 146, 140, 168, "tray", false);
+            var quit = Make("Quitter", 326, 140, 130, "quit", true);
+            Controls.Add(title);
+            Controls.Add(text);
+            Controls.Add(cancel);
+            Controls.Add(tray);
+            Controls.Add(quit);
+            CancelButton = cancel;
+        }
+
+        Button Make(string caption, int x, int y, int width, string choice, bool primary)
+        {
+            var button = new Button
+            {
+                Text = caption,
+                Bounds = new Rectangle(x, y, width, 36),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = primary ? Color.FromArgb(22, 163, 74) : Color.FromArgb(243, 246, 244),
+                ForeColor = primary ? Color.White : Color.FromArgb(16, 32, 24),
+                Cursor = Cursors.Hand
+            };
+            button.FlatAppearance.BorderColor = primary
+                ? Color.FromArgb(22, 163, 74)
+                : Color.FromArgb(214, 224, 218);
+            button.Click += (s, e) =>
+            {
+                Choice = choice;
+                Close();
+            };
+            return button;
         }
     }
 }

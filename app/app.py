@@ -33,6 +33,8 @@ from scrapers.systeme.workspace import (
 )
 
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 app.config["PROPAGATE_EXCEPTIONS"] = False
 

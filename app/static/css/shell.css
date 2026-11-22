@@ -552,3 +552,44 @@ html[data-theme="scrapeo"] .btn-primary {
 @media (max-width: 720px) {
     .stat-grid, .dash-grid, .form-card { grid-template-columns: 1fr; }
 }
+
+.exit-modal {
+    max-width: 460px;
+    padding: 28px 28px 22px;
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(16, 32, 24, 0.22);
+}
+
+.exit-modal .swal-title {
+    color: #102018;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+}
+
+.exit-modal .swal-text {
+    color: #4b6358;
+    margin-bottom: 22px;
+}
+
+.exit-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.exit-modal .swal-button--cancel,
+.exit-modal .swal-button--cancel:hover:not(:disabled) {
+    background: #eef2f0;
+    color: #24382f;
+}
+
+.exit-modal .swal-button--tray,
+.exit-modal .swal-button--tray:hover:not(:disabled) {
+    background: #16a34a;
+    color: #fff;
+}
+
+.exit-modal .swal-button--quit,
+.exit-modal .swal-button--quit:hover:not(:disabled) {
+    background: #102018;
+    color: #fff;
+}

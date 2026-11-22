@@ -6,20 +6,52 @@
     <title>OraScrapInAll</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=2">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}?v=4">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}?v=2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}?v=5">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/atlas.css') }}?v=11">
     <script>
         (function () {
-            var theme = localStorage.getItem('orascrap-theme') || 'basic';
-            document.documentElement.setAttribute('data-theme', theme);
+            var stored = localStorage.getItem('orascrap-theme');
+            if (!localStorage.getItem('orascrap-theme-v2')) {
+                localStorage.setItem('orascrap-theme-v2', '1');
+                if (!stored || stored === 'basic') stored = 'atlas';
+                localStorage.setItem('orascrap-theme', stored);
+            }
+            document.documentElement.setAttribute('data-theme', stored || 'atlas');
         })();
     </script>
 </head>
 <body>
 <div class="app-shell">
     <aside class="sidebar">
+        <div class="sidebar-aurora" aria-hidden="true">
+            <svg viewBox="0 0 248 900" preserveAspectRatio="xMidYMax slice">
+                <defs>
+                    <linearGradient id="curveLight" x1="0" y1="1" x2="1" y2="0">
+                        <stop offset="0" stop-color="#7dffe0" stop-opacity="0"/>
+                        <stop offset="0.42" stop-color="#f4fff9" stop-opacity="1"/>
+                        <stop offset="1" stop-color="#49d6a4" stop-opacity="0.15"/>
+                    </linearGradient>
+                    <filter id="curveGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="1.6" result="blur"/>
+                        <feMerge>
+                            <feMergeNode in="blur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+                <g class="curve-shift">
+                    <path class="curve curve-soft" d="M-24 900 C 18 850, 70 890, 118 830 C 176 756, 206 730, 280 660"/>
+                    <path class="curve curve-mid" d="M-16 848 C 36 892, 78 804, 132 754 C 186 704, 214 652, 286 586"/>
+                    <path class="curve curve-bright" d="M-20 808 C 34 848, 86 748, 146 698 C 198 654, 220 598, 292 528" filter="url(#curveGlow)"/>
+                    <path class="curve curve-high" d="M-12 768 C 48 802, 96 708, 158 656 C 206 614, 228 562, 300 492"/>
+                    <path class="curve curve-flow" d="M-20 808 C 34 848, 86 748, 146 698 C 198 654, 220 598, 292 528"/>
+                </g>
+            </svg>
+        </div>
         <div class="brand"><span class="brand-mark">O</span><span>OraScrapInAll</span></div>
         <nav class="nav-list">
             <button class="nav-btn" data-page="dashboard" onclick="showPage('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg><span>Tableau de bord</span></button>
@@ -34,6 +66,7 @@
         <div class="sidebar-foot">
             <strong>Système</strong>
             <span><i class="dot"></i><em id="systemState">Prêt</em></span>
+            <small class="foot-version" id="appVersion"></small>
         </div>
     </aside>
     <div class="workspace">
@@ -48,6 +81,7 @@
                 </div>
                 <label class="theme-picker">Thème
                     <select id="themeSelectBasic" onchange="setTheme(this.value)">
+                        <option value="atlas">Atlas</option>
                         <option value="basic">Basic</option>
                         <option value="harvest">Harvest</option>
                         <option value="grid">GridScrape</option>
@@ -83,6 +117,7 @@
             </label>
             <label class="theme-picker">Thème
                 <select id="themeSelect" onchange="setTheme(this.value)">
+                    <option value="atlas">Atlas</option>
                     <option value="basic">Basic</option>
                     <option value="harvest">Harvest</option>
                     <option value="grid">GridScrape</option>
@@ -228,6 +263,13 @@
                 </label>
                 <button class="btn-primary" type="button" onclick="planCurrentSearch()">Planifier</button>
             </div>
+        </div>
+
+        <div class="atlas-kpis">
+            <div class="atlas-kpi"><strong id="atlasGroups">0</strong><span>Groupes</span></div>
+            <div class="atlas-kpi"><strong id="atlasSources">0</strong><span>Sources</span></div>
+            <div class="atlas-kpi"><strong id="atlasSelected">0</strong><span>Sélectionnées</span></div>
+            <div class="atlas-kpi"><strong id="atlasLast">0</strong><span>Dernière recherche</span></div>
         </div>
         
         <div class="sources-section">
@@ -542,6 +584,25 @@
             if (availableSources && Object.keys(availableSources).length) renderSources();
         }
 
+        function loadGroupOpenState() {
+            try {
+                return JSON.parse(localStorage.getItem('orascrap-source-groups') || '{}') || {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveGroupOpenState(name, isOpen) {
+            const state = loadGroupOpenState();
+            state[name] = !!isOpen;
+            localStorage.setItem('orascrap-source-groups', JSON.stringify(state));
+        }
+
+        function isGroupOpen(name) {
+            const state = loadGroupOpenState();
+            return Object.prototype.hasOwnProperty.call(state, name) ? !!state[name] : true;
+        }
+
         function renderSources() {
             const container = document.getElementById('sourcesContainer');
             if (document.documentElement.getAttribute('data-theme') === 'basic') {
@@ -557,7 +618,7 @@
                 });
                 if (!visible.length) continue;
                 const chosen = sources.filter(s => selectedSources.has(s.id)).length;
-                html += `<details class="sources-group" open>`;
+                html += `<details class="sources-group">`;
                 html += `<summary><span>${escapeHtml(groupName)}</span><span class="source-count">${chosen} / ${sources.length}</span></summary>`;
                 html += `<div class="sources-list">`;
                 visible.forEach(s => {
@@ -567,8 +628,26 @@
                 html += `</div></details>`;
             }
             container.innerHTML = html || '<p class="source-count">Aucun groupe ne correspond.</p>';
+            container.querySelectorAll('details.sources-group').forEach(details => {
+                const name = details.querySelector('summary > span')?.textContent || '';
+                details.open = isGroupOpen(name);
+            });
             refreshSourceCounts();
         }
+
+        (function bindGroupMemory() {
+            const box = document.getElementById('sourcesContainer');
+            if (!box || box.dataset.memoryBound) return;
+            box.dataset.memoryBound = '1';
+            box.addEventListener('click', (event) => {
+                const summary = event.target.closest('summary');
+                const details = summary && summary.parentElement;
+                if (!details || !details.classList.contains('sources-group')) return;
+                const name = details.querySelector('summary > span')?.textContent || '';
+                if (!name) return;
+                saveGroupOpenState(name, !details.open);
+            });
+        })();
 
         function renderSourceChips() {
             const container = document.getElementById('sourcesContainer');
@@ -599,9 +678,17 @@
 
         function refreshSourceCounts() {
             const badge = document.getElementById('sourceCount');
-            if (!badge) return;
             const n = selectedSources.size;
-            badge.textContent = `${n} sélectionné${n > 1 ? 's' : ''}`;
+            if (badge) badge.textContent = `${n} sélectionné${n > 1 ? 's' : ''}`;
+            const groups = Object.keys(availableSources || {}).length;
+            const total = Object.values(availableSources || {}).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+            const put = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+            put('atlasGroups', groups);
+            put('atlasSources', total);
+            put('atlasSelected', n);
         }
 
         function toggleSource(id, el) {
@@ -1066,6 +1153,14 @@
                     statusTextMsg = `✅ Recherche terminée ! ${data.count} résultat${data.count > 1 ? 's' : ''} trouvé${data.count > 1 ? 's' : ''}`;
                 }
                 if (statusText) statusText.textContent = statusTextMsg;
+                const statusEl = document.getElementById('status');
+                if (statusEl) {
+                    const failed = !data.in_progress && /erreur|échec|echec|impossible/i.test(statusTextMsg);
+                    statusEl.classList.add('active');
+                    statusEl.classList.toggle('loading', !!data.in_progress);
+                    statusEl.classList.toggle('is-error', failed);
+                    statusEl.classList.toggle('is-ok', !data.in_progress && !failed);
+                }
                 
                 if (data.count !== lastKnownCount || revision !== lastRevision) {
                     lastKnownCount = data.count;
@@ -1333,6 +1428,9 @@
             const emptyState = document.getElementById('emptyState');
             const countBadge = document.getElementById('resultsCount');
             
+            const atlasLast = document.getElementById('atlasLast');
+            if (atlasLast) atlasLast.textContent = String((data && data.length) || 0);
+
             if (!data || data.length === 0) {
                 container.style.display = 'none';
                 emptyState.style.display = 'block';
@@ -1461,6 +1559,17 @@
             }
         }).catch(() => {});
     </script>
+    <div id="exit-overlay" class="swal-overlay" onclick="if (event.target === this) orascrapExitChoice('cancel')">
+        <div class="swal-modal exit-modal" role="dialog" aria-labelledby="exit-title">
+            <div id="exit-title" class="swal-title">Fermer OraScrapInAll</div>
+            <div class="swal-text">L'application peut rester active près de l'horloge. Un double-clic sur son icône la rouvre. Vous pouvez aussi la quitter complètement.</div>
+            <div class="swal-button-container exit-actions">
+                <button type="button" class="swal-button swal-button--cancel" onclick="orascrapExitChoice('cancel')">Annuler</button>
+                <button type="button" class="swal-button swal-button--tray" onclick="orascrapExitChoice('tray')">Près de l'horloge</button>
+                <button type="button" class="swal-button swal-button--quit" onclick="orascrapExitChoice('quit')">Quitter</button>
+            </div>
+        </div>
+    </div>
 <!-- Popup style SweetAlert2 -->
     <div id="swal-overlay" class="swal-overlay">
         <div class="swal-modal">
@@ -1474,6 +1583,25 @@
     </div>
 
     <script>
+        fetch('/api/health').then(r => r.json()).then(info => {
+            const tag = document.getElementById('appVersion');
+            if (tag && info && info.version) tag.textContent = 'v' + info.version;
+        }).catch(() => {});
+
+        function orascrapAskExit() {
+            const overlay = document.getElementById('exit-overlay');
+            if (overlay) overlay.classList.add('show');
+        }
+
+        function orascrapExitChoice(choice) {
+            const overlay = document.getElementById('exit-overlay');
+            if (overlay) overlay.classList.remove('show');
+            try {
+                if (window.chrome && window.chrome.webview)
+                    window.chrome.webview.postMessage(choice);
+            } catch (e) {}
+        }
+
         // Fonctions popup style SweetAlert2
         function showSwal(options) {
             return new Promise((resolve) => {

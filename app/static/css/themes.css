@@ -134,6 +134,30 @@ html[data-theme="flow"] {
     --surface: #ffffff;
 }
 
+html[data-theme="atlas"] {
+    --sidebar: #083426;
+    --primary: #16a34a;
+    --primary-hover: #15803d;
+    --primary-light: #e8f7ee;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --gray-50: #f4f6f5;
+    --gray-100: #e7eeea;
+    --gray-200: #d7e3dc;
+    --gray-300: #c3d2ca;
+    --gray-400: #7d9488;
+    --gray-500: #5f756b;
+    --gray-600: #3e564b;
+    --gray-700: #24382f;
+    --gray-800: #183028;
+    --gray-900: #102018;
+    --surface: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(16, 32, 24, 0.05);
+    --shadow: 0 10px 28px rgba(16, 40, 28, 0.06);
+    --shadow-md: 0 18px 40px rgba(16, 40, 28, 0.08);
+}
+
 html[data-theme="scrapeo"] {
     --sidebar: #ffffff;
     --primary: #16a34a;

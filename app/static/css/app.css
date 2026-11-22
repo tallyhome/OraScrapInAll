@@ -211,9 +211,21 @@
         .status.active { display: block; }
         
         .status.loading {
-            background: #fef3c7;
+            background: #fffbeb;
             border-color: #fde68a;
             color: #92400e;
+        }
+
+        .status.is-ok {
+            background: #ecfdf3;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        .status.is-error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
         }
         
         .results-section {
