@@ -1,0 +1,27 @@
+Comment donner OraScrapInAll a quelqu'un
+=====================================
+
+1. Sur ta machine, lance :
+
+   packaging\build-distrib.ps1
+
+   (ou : powershell -File packaging\build-distrib.ps1)
+
+2. Le fichier a donner est :
+
+   archives\OraScrapInAll-<version>.exe
+
+   Exemple : archives\OraScrapInAll-2.4.0.exe
+
+3. La personne double-clique.
+   - Installation dans %LOCALAPPDATA%\OraScrapInAll
+   - Raccourci sur le Bureau
+   - Lancement automatique
+
+Pas besoin de Python, ni de dossier a cote. Un seul fichier suffit.
+
+Notes
+-----
+- Windows 10/11 avec Edge (WebView2) deja present en general.
+- Chrome reste utile pour certaines recherches Selenium.
+- Pour reconstruire l'exe d'appli avant le paquet : launcher\build.bat

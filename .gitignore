@@ -11,4 +11,5 @@ search_history.json
 launcher/bin/
 launcher/obj/
 launcher/publish/
+packaging/PackagedVersion.cs
 *.pdb
